@@ -1,0 +1,27 @@
+[package]
+name = "leptos-animate"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leptos = { version = "0.6", features = ["nightly"] }
+indexmap = "2"
+leptos-use = "0.10"
+wasm-bindgen = "0.2.92"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+anyhow = "1"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "DomRect",
+    #    "CssStyleDeclaration",
+    "Animation",
+    "KeyframeAnimationOptions",
+    "FillMode",
+    "ResizeObserverSize",
+]
+
+[features]
+ssr = []
