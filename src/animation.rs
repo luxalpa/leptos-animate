@@ -173,8 +173,14 @@ where
 
                             let values = vec![1.0, 0.0];
 
-                            let width = el.offset_width();
-                            let height = el.offset_height();
+                            let extent = if animate_size {
+                                snapshot.extent
+                            } else {
+                                Extent {
+                                    width: el.offset_width() as f64,
+                                    height: el.offset_height() as f64,
+                                }
+                            };
 
                             let style = el.style();
                             style.set_property("position", "absolute").unwrap();
@@ -186,11 +192,11 @@ where
                                 .unwrap();
 
                             style
-                                .set_property("width", &format!("{}px", width))
+                                .set_property("width", &format!("{}px", extent.width))
                                 .unwrap();
 
                             style
-                                .set_property("height", &format!("{}px", height))
+                                .set_property("height", &format!("{}px", extent.height))
                                 .unwrap();
 
                             let arr: Array = values
