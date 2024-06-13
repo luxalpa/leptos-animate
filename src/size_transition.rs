@@ -19,7 +19,6 @@ fn fuzzy_compare(a: f64, b: f64) -> bool {
 /// Does not work for elements that infer their width from their container (like 1fr grid items).
 #[component]
 pub fn SizeTransition(children: Children) -> impl IntoView {
-    #[allow(unused_variables)]
     let target_ref = NodeRef::<html::Span>::new();
     let last_width = StoredValue::new(None::<f64>);
 

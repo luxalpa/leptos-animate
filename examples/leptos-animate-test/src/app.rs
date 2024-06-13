@@ -1,5 +1,5 @@
 use leptos::*;
-use leptos_animate::AnimatedFor;
+use leptos_animate::{AnimatedFor, AnimatedLayout, LayoutEntry, LayoutResult};
 use leptos_meta::*;
 use leptos_router::*;
 
@@ -19,8 +19,10 @@ pub fn App() -> impl IntoView {
         // content for this welcome page
         <Router>
             <main>
+                <Navigation/>
                 <Routes>
-                    <Route path="" view=HomePage/>
+                    <Route path="" view=AnimatedForPage/>
+                    <Route path="/layout" view=AnimatedLayoutPage/>
                     <Route path="/*any" view=NotFound/>
                 </Routes>
             </main>
@@ -28,9 +30,19 @@ pub fn App() -> impl IntoView {
     }
 }
 
+#[component]
+fn Navigation() -> impl IntoView {
+    view! {
+        <nav>
+            <A href="/">AnimatedFor</A>
+            <A href="/layout">AnimatedLayout</A>
+        </nav>
+    }
+}
+
 /// Renders the home page of your application.
 #[component]
-fn HomePage() -> impl IntoView {
+fn AnimatedForPage() -> impl IntoView {
     let next_key = StoredValue::new(6);
     let elements = RwSignal::new(vec![1, 2, 3, 4, 5]);
 
@@ -100,6 +112,99 @@ fn HomePage() -> impl IntoView {
             <div class="main-grid">
                 <AnimatedFor each key children animate_size=true />
             </div>
+        </div>
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+enum WindowKind {
+    Main,
+    Edit,
+    EditOptions,
+}
+
+#[component]
+fn AnimatedLayoutPage() -> impl IntoView {
+    let variant = RwSignal::new(WindowKind::Main);
+
+    let set_variant_one = move |_| variant.set(WindowKind::Main);
+    let set_variant_two = move |_| variant.set(WindowKind::Edit);
+    let set_variant_three = move |_| variant.set(WindowKind::EditOptions);
+
+    let main_view = move || {
+        (view! {
+            <div class="main-view">
+                "Main view"
+            </div>
+        })
+        .into_view()
+    };
+
+    let edit_view = move || {
+        (view! {
+            <div class="edit-view">
+                "Edit view"
+            </div>
+        })
+        .into_view()
+    };
+
+    let options_view = move || {
+        (view! {
+            <div class="edit-options-view">
+                "Options view"
+            </div>
+        })
+        .into_view()
+    };
+
+    let contents = move || {
+        let variant = variant.get();
+        match variant {
+            WindowKind::Main => LayoutResult {
+                class: Some("main-mode".into()),
+                entries: vec![LayoutEntry {
+                    key: WindowKind::Main,
+                    view_fn: Box::new(main_view),
+                }],
+            },
+            WindowKind::Edit => LayoutResult {
+                class: Some("edit-mode".into()),
+                entries: vec![
+                    LayoutEntry {
+                        key: WindowKind::Edit,
+                        view_fn: Box::new(edit_view),
+                    },
+                    LayoutEntry {
+                        key: WindowKind::Main,
+                        view_fn: Box::new(main_view),
+                    },
+                ],
+            },
+            WindowKind::EditOptions => LayoutResult {
+                class: Some("edit-options-mode".into()),
+                entries: vec![
+                    LayoutEntry {
+                        key: WindowKind::EditOptions,
+                        view_fn: Box::new(options_view),
+                    },
+                    LayoutEntry {
+                        key: WindowKind::Edit,
+                        view_fn: Box::new(edit_view),
+                    },
+                ],
+            },
+        }
+    };
+
+    view! {
+        <div class="main-container">
+            <div class="buttons">
+                <button on:click=set_variant_one>"Main"</button>
+                <button on:click=set_variant_two>"Edit"</button>
+                <button on:click=set_variant_three>"Edit + Options"</button>
+            </div>
+            <AnimatedLayout contents />
         </div>
     }
 }

@@ -87,6 +87,7 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     #[prop(optional)] on_after_snapshot: Option<Callback<()>>,
     #[prop(default = false)] appear: bool,
     #[prop(default = false)] animate_size: bool,
+    #[prop(default = false)] handle_margins: bool,
 ) -> impl IntoView
 where
     IF: Fn() -> I + 'static,
@@ -120,6 +121,7 @@ where
                             get_el_snapshot(
                                 &meta.el.as_ref().expect("el always exists on the client"),
                                 animate_size,
+                                handle_margins,
                             )
                         }
                     })
@@ -279,7 +281,7 @@ where
 
                     // Move-animation
 
-                    let new_snapshot = get_el_snapshot(&el, animate_size);
+                    let new_snapshot = get_el_snapshot(&el, animate_size, handle_margins);
 
                     if prev_snapshot == new_snapshot {
                         continue;
@@ -460,7 +462,11 @@ pub fn delay_signal<T: Clone>(source_signal: impl IntoSignal<Value = T>) -> Read
     s.read_only()
 }
 
-fn get_el_snapshot(el: &web_sys::HtmlElement, record_extent: bool) -> ElementSnapshot {
+fn get_el_snapshot(
+    el: &web_sys::HtmlElement,
+    record_extent: bool,
+    handle_margins: bool,
+) -> ElementSnapshot {
     let extent = record_extent
         .then(|| {
             let rect = el.get_bounding_client_rect();
@@ -471,12 +477,16 @@ fn get_el_snapshot(el: &web_sys::HtmlElement, record_extent: bool) -> ElementSna
         })
         .unwrap_or_default();
 
-    el.style().set_property("margin", "0px").unwrap();
+    if handle_margins {
+        el.style().set_property("margin", "0px").unwrap();
+    }
     let position = Position {
         x: el.offset_left() as f64,
         y: el.offset_top() as f64,
     };
-    el.style().remove_property("margin").unwrap();
+    if handle_margins {
+        el.style().remove_property("margin").unwrap();
+    }
 
     ElementSnapshot { position, extent }
 }
@@ -509,7 +519,7 @@ pub fn animated_size_and_pos(el: HtmlElement<AnyElement>, about_to_change: Trigg
             let el = el.clone();
             move || {
                 queue_microtask(move || {
-                    let snapshot = get_el_snapshot(&el, false);
+                    let snapshot = get_el_snapshot(&el, false, false);
                     let new_pos = snapshot.position;
                     let new_val = el.get_bounding_client_rect();
 
@@ -563,7 +573,7 @@ pub struct LayoutEntry<K: Hash + Eq + Clone + 'static> {
 }
 
 pub struct LayoutResult<K: Hash + Eq + Clone + 'static> {
-    pub class: Option<String>,
+    pub class: Option<Oco<'static, str>>,
     pub entries: Vec<LayoutEntry<K>>,
 }
 
@@ -573,8 +583,8 @@ where
     K: Hash + Eq + Clone + 'static,
     ContentsFn: Fn() -> LayoutResult<K> + 'static,
 {
-    let new_class = StoredValue::new(None::<String>);
-    let class = RwSignal::new(None::<String>);
+    let new_class = StoredValue::new(None::<Oco<'static, str>>);
+    let class = RwSignal::new(None::<Oco<'static, str>>);
 
     let each = move || {
         let contents = contents();
@@ -592,7 +602,7 @@ where
 
     view! {
         <div class=class>
-            <AnimatedFor each key children on_after_snapshot />
+            <AnimatedFor each key children on_after_snapshot animate_size=true />
         </div>
     }
 }

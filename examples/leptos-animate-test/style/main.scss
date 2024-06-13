@@ -36,3 +36,56 @@ body {
   background-color: #efefef;
   border-radius: 8px;
 }
+
+nav {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem;
+
+  & > a {
+    padding: 0.5em 1em;
+    text-decoration: none;
+    color: black;
+    transition: all 0.2s ease-in-out;
+
+    &[aria-current="page"] {
+      background-color: #dc7600;
+      color: white;
+    }
+  }
+}
+
+@mixin layout-box {
+  width: 100%;
+  height: 400px;
+  border: 1px solid #dc7600;
+  display: grid;
+}
+
+.main-mode {
+  @include layout-box;
+  grid-template-columns: 200px;
+  justify-content: center;
+}
+
+.edit-mode {
+  @include layout-box;
+  grid-template-columns: 100px 300px;
+}
+
+.edit-options-mode {
+  @include layout-box;
+  grid-template-columns: 100px 200px;
+}
+
+.main-view {
+  background-color: #ffb0b0;
+}
+
+.edit-view {
+  background-color: #b0ffb0;
+}
+
+.edit-options-view {
+  background-color: #b0b0ff;
+}
