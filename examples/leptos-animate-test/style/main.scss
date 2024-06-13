@@ -1,4 +1,38 @@
 body {
-	font-family: sans-serif;
-	text-align: center;
+  font-family: sans-serif;
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 100px 100px 200px;
+  grid-gap: 1rem;
+}
+
+.element {
+  background-color: orange;
+  border-radius: 4px;
+  border: 1px solid #dc7600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  padding: 1rem;
+}
+
+.buttons {
+  display: flex;
+  gap: 1rem;
+  margin: 20px;
+}
+
+.buttons button {
+  padding: 0.5em 1em;
+}
+
+.main-container {
+  width: 800px;
+  height: 600px;
+  overflow: auto;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  margin-inline: auto;
+  background-color: #efefef;
+  border-radius: 8px;
 }
