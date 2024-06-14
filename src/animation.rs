@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use crate::{EnterAnimation, FadeAnimation, LeaveAnimation, MoveAnimation, SlidingAnimation};
 use indexmap::IndexMap;
-use leptos::html::AnyElement;
 use leptos::leptos_dom::is_server;
 use leptos::*;
 use wasm_bindgen::closure::Closure;
@@ -542,81 +541,81 @@ fn get_el_snapshot(
     ElementSnapshot { position, extent }
 }
 
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ResizeAndMoveAnimKeyframe {
-    transform_origin: String,
-    transform: String,
-    width: String,
-    height: String,
-    position: &'static str,
-    top: String,
-    left: String,
-}
+// #[derive(serde::Serialize)]
+// #[serde(rename_all = "camelCase")]
+// struct ResizeAndMoveAnimKeyframe {
+//     transform_origin: String,
+//     transform: String,
+//     width: String,
+//     height: String,
+//     position: &'static str,
+//     top: String,
+//     left: String,
+// }
 
 /// Animates position and size of an element.
-pub fn animated_size_and_pos(el: HtmlElement<AnyElement>, about_to_change: Trigger) {
-    create_effect(move |prev| {
-        about_to_change.track();
-        if prev.is_none() {
-            return;
-        }
-
-        // First get the current values!
-        let initial = el.get_bounding_client_rect();
-
-        // Need to wait a bit for the change that triggered about_to_change to complete
-        queue_microtask({
-            let el = el.clone();
-            move || {
-                queue_microtask(move || {
-                    let snapshot = get_el_snapshot(&el, false, false);
-                    let new_pos = snapshot.position;
-                    let new_val = el.get_bounding_client_rect();
-
-                    let duration = 100.0;
-
-                    let arr: Array = [
-                        serde_wasm_bindgen::to_value(&ResizeAndMoveAnimKeyframe {
-                            transform_origin: "top left".to_string(),
-                            transform: format!(
-                                "translate({}px, {}px)",
-                                initial.x() - new_val.x(),
-                                initial.y() - new_val.y(),
-                            ),
-                            width: format!("{}px", initial.width()),
-                            height: format!("{}px", initial.height()),
-                            position: "absolute",
-                            top: format!("{}px", new_pos.y),
-                            left: format!("{}px", new_pos.x),
-                        })
-                        .unwrap(),
-                        serde_wasm_bindgen::to_value(&ResizeAndMoveAnimKeyframe {
-                            transform_origin: "top left".to_string(),
-                            transform: "none".to_string(),
-                            width: format!("{}px", new_val.width()),
-                            height: format!("{}px", new_val.height()),
-                            position: "absolute",
-                            top: format!("{}px", new_pos.y),
-                            left: format!("{}px", new_pos.x),
-                        })
-                        .unwrap(),
-                    ]
-                    .into_iter()
-                    .collect();
-
-                    animate(
-                        &el,
-                        Some(&arr.into()),
-                        &duration.into(),
-                        FillMode::None,
-                        Some("ease-out"),
-                    );
-                });
-            }
-        });
-    });
-}
+// pub fn animated_size_and_pos(el: HtmlElement<AnyElement>, about_to_change: Trigger) {
+//     create_effect(move |prev| {
+//         about_to_change.track();
+//         if prev.is_none() {
+//             return;
+//         }
+//
+//         // First get the current values!
+//         let initial = el.get_bounding_client_rect();
+//
+//         // Need to wait a bit for the change that triggered about_to_change to complete
+//         queue_microtask({
+//             let el = el.clone();
+//             move || {
+//                 queue_microtask(move || {
+//                     let snapshot = get_el_snapshot(&el, false, false);
+//                     let new_pos = snapshot.position;
+//                     let new_val = el.get_bounding_client_rect();
+//
+//                     let duration = 100.0;
+//
+//                     let arr: Array = [
+//                         serde_wasm_bindgen::to_value(&ResizeAndMoveAnimKeyframe {
+//                             transform_origin: "top left".to_string(),
+//                             transform: format!(
+//                                 "translate({}px, {}px)",
+//                                 initial.x() - new_val.x(),
+//                                 initial.y() - new_val.y(),
+//                             ),
+//                             width: format!("{}px", initial.width()),
+//                             height: format!("{}px", initial.height()),
+//                             position: "absolute",
+//                             top: format!("{}px", new_pos.y),
+//                             left: format!("{}px", new_pos.x),
+//                         })
+//                         .unwrap(),
+//                         serde_wasm_bindgen::to_value(&ResizeAndMoveAnimKeyframe {
+//                             transform_origin: "top left".to_string(),
+//                             transform: "none".to_string(),
+//                             width: format!("{}px", new_val.width()),
+//                             height: format!("{}px", new_val.height()),
+//                             position: "absolute",
+//                             top: format!("{}px", new_pos.y),
+//                             left: format!("{}px", new_pos.x),
+//                         })
+//                         .unwrap(),
+//                     ]
+//                     .into_iter()
+//                     .collect();
+//
+//                     animate(
+//                         &el,
+//                         Some(&arr.into()),
+//                         &duration.into(),
+//                         FillMode::None,
+//                         Some("ease-out"),
+//                     );
+//                 });
+//             }
+//         });
+//     });
+// }
 
 pub struct LayoutEntry<K: Hash + Eq + Clone + 'static> {
     pub key: K,
@@ -629,7 +628,18 @@ pub struct LayoutResult<K: Hash + Eq + Clone + 'static> {
 }
 
 #[component]
-pub fn AnimatedLayout<K, ContentsFn>(contents: ContentsFn) -> impl IntoView
+pub fn AnimatedLayout<K, ContentsFn>(
+    contents: ContentsFn,
+    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: Box<
+        dyn EnterAnimationTrait,
+    >,
+    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: Box<
+        dyn LeaveAnimationTrait,
+    >,
+    #[prop(default = SlidingAnimation::default().into(), into)] move_anim: Box<
+        dyn MoveAnimationTrait,
+    >,
+) -> impl IntoView
 where
     K: Hash + Eq + Clone + 'static,
     ContentsFn: Fn() -> LayoutResult<K> + 'static,
@@ -651,9 +661,13 @@ where
         class.set(new_class.get_value());
     });
 
+    let inner = view! {
+        <AnimatedFor each key children on_after_snapshot animate_size=true enter_anim move_anim leave_anim />
+    };
+
     view! {
         <div class=class>
-            <AnimatedFor each key children on_after_snapshot animate_size=true />
+            {inner}
         </div>
     }
 }
