@@ -69,7 +69,7 @@ pub fn SizeTransition(children: Children) -> impl IntoView {
             Some(&arr.into()),
             &duration.into(),
             FillMode::None,
-            None,
+            None::<&str>,
         );
     });
 

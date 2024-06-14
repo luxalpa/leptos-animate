@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::rc::Rc;
 
+use crate::{EnterAnimation, FadeAnimation, LeaveAnimation, MoveAnimation, SlidingAnimation};
 use indexmap::IndexMap;
 use leptos::html::AnyElement;
 use leptos::leptos_dom::is_server;
@@ -16,11 +17,6 @@ use crate::position::{Extent, Position};
 struct ItemMeta {
     el: Option<web_sys::HtmlElement>,
     scope: Disposer,
-}
-
-#[derive(serde::Serialize)]
-struct EnterLeaveKeyframe {
-    opacity: f64,
 }
 
 #[derive(serde::Serialize)]
@@ -42,7 +38,7 @@ pub fn animate(
     keyframes: Option<&js_sys::Object>,
     duration: &::wasm_bindgen::JsValue,
     fill_mode: FillMode,
-    easing: Option<&'static str>,
+    easing: Option<impl AsRef<str>>,
 ) -> Animation {
     #[cfg(not(feature = "ssr"))]
     {
@@ -52,7 +48,7 @@ pub fn animate(
         options.duration(duration).fill(fill_mode);
 
         if let Some(easing) = easing {
-            options.easing(easing);
+            options.easing(easing.as_ref());
         }
 
         el.animate_with_keyframe_animation_options(keyframes, &options)
@@ -69,13 +65,127 @@ pub fn animate(
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-struct ElementSnapshot {
+pub struct ElementSnapshot {
     position: Position,
     extent: Extent,
 }
 
-pub const ENTER_LEAVE_DURATION: f64 = 500.0;
-pub const MOVE_DURATION: f64 = 500.0;
+pub trait EnterAnimationTrait {
+    fn animate(&self, el: &web_sys::HtmlElement) -> Animation;
+}
+
+impl<T: EnterAnimation> EnterAnimationTrait for T {
+    fn animate(&self, el: &web_sys::HtmlElement) -> Animation {
+        let r = self.enter();
+
+        let arr: Array = r
+            .keyframes
+            .into_iter()
+            .map(|v| serde_wasm_bindgen::to_value(&v).unwrap())
+            .collect();
+
+        animate(
+            &el,
+            Some(&arr.into()),
+            &(r.duration.as_secs_f64() * 1000.0).into(),
+            FillMode::None,
+            r.timing_fn.as_ref().map(|v| v.as_str()),
+        )
+    }
+}
+
+impl<T: EnterAnimationTrait + 'static> From<T> for Box<dyn EnterAnimationTrait> {
+    fn from(v: T) -> Self {
+        Box::new(v)
+    }
+}
+
+pub trait LeaveAnimationTrait {
+    fn animate(&self, el: &web_sys::HtmlElement) -> Animation;
+}
+
+impl<T: LeaveAnimation> LeaveAnimationTrait for T {
+    fn animate(&self, el: &web_sys::HtmlElement) -> Animation {
+        let r = self.leave();
+
+        let arr: Array = r
+            .keyframes
+            .into_iter()
+            .map(|v| serde_wasm_bindgen::to_value(&v).unwrap())
+            .collect();
+
+        animate(
+            &el,
+            Some(&arr.into()),
+            &(r.duration.as_secs_f64() * 1000.0).into(),
+            FillMode::None,
+            r.timing_fn.as_ref().map(|v| v.as_str()),
+        )
+    }
+}
+
+impl<T: LeaveAnimationTrait + 'static> From<T> for Box<dyn LeaveAnimationTrait> {
+    fn from(v: T) -> Self {
+        Box::new(v)
+    }
+}
+
+pub trait MoveAnimationTrait {
+    fn animate(
+        &self,
+        el: &web_sys::HtmlElement,
+        prev_snapshot: ElementSnapshot,
+        new_snapshot: ElementSnapshot,
+        animate_size: bool,
+    ) -> Animation;
+}
+
+impl<T: MoveAnimation> MoveAnimationTrait for T {
+    fn animate(
+        &self,
+        el: &web_sys::HtmlElement,
+        prev_snapshot: ElementSnapshot,
+        new_snapshot: ElementSnapshot,
+        animate_size: bool,
+    ) -> Animation {
+        let r = self.animate(prev_snapshot.position, new_snapshot.position);
+
+        let diff = prev_snapshot.position - new_snapshot.position;
+
+        let arr: Array = [
+            serde_wasm_bindgen::to_value(&MoveAnimKeyframe {
+                transform_origin: "top left".to_string(),
+                transform: format!("translate({}px, {}px)", diff.x, diff.y),
+                width: animate_size.then(|| format!("{}px", prev_snapshot.extent.width)),
+                height: animate_size.then(|| format!("{}px", prev_snapshot.extent.height)),
+            })
+            .unwrap(),
+            serde_wasm_bindgen::to_value(&MoveAnimKeyframe {
+                transform_origin: "top left".to_string(),
+                transform: "none".to_string(),
+                width: animate_size.then(|| format!("{}px", new_snapshot.extent.width)),
+                height: animate_size.then(|| format!("{}px", new_snapshot.extent.height)),
+            })
+            .unwrap(),
+        ]
+        .into_iter()
+        .collect();
+
+        animate(
+            &el,
+            Some(&arr.into()),
+            &(r.duration.as_secs_f64() * 1000.0).into(),
+            FillMode::None,
+            r.timing_fn.as_ref().map(|v| v.as_str()),
+        )
+    }
+}
+
+impl<T: MoveAnimationTrait + 'static> From<T> for Box<dyn MoveAnimationTrait> {
+    fn from(v: T) -> Self {
+        Box::new(v)
+    }
+}
 
 #[component]
 pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
@@ -88,6 +198,15 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     #[prop(default = false)] appear: bool,
     #[prop(default = false)] animate_size: bool,
     #[prop(default = false)] handle_margins: bool,
+    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: Box<
+        dyn EnterAnimationTrait,
+    >,
+    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: Box<
+        dyn LeaveAnimationTrait,
+    >,
+    #[prop(default = SlidingAnimation::default().into(), into)] move_anim: Box<
+        dyn MoveAnimationTrait,
+    >,
 ) -> impl IntoView
 where
     IF: Fn() -> I + 'static,
@@ -102,6 +221,9 @@ where
     let leaving_items = RwSignal::new(IndexMap::<K, T>::new());
     let key_fn = StoredValue::new(key);
     let alive_items_meta = StoredValue::new(HashMap::<K, ItemMeta>::new());
+    let enter_anim = StoredValue::new(enter_anim);
+    let leave_anim = StoredValue::new(leave_anim);
+    let move_anim = StoredValue::new(move_anim);
 
     create_isomorphic_effect(move |prev| {
         let new_items = each()
@@ -173,8 +295,6 @@ where
                                 on_leave_start((el.clone(), snapshot.position));
                             }
 
-                            let values = vec![1.0, 0.0];
-
                             let extent = if animate_size {
                                 snapshot.extent
                             } else {
@@ -201,21 +321,7 @@ where
                                 .set_property("height", &format!("{}px", extent.height))
                                 .unwrap();
 
-                            let arr: Array = values
-                                .into_iter()
-                                .map(|opacity| {
-                                    serde_wasm_bindgen::to_value(&EnterLeaveKeyframe { opacity })
-                                        .unwrap()
-                                })
-                                .collect();
-
-                            let anim = animate(
-                                &el,
-                                Some(&arr.into()),
-                                &ENTER_LEAVE_DURATION.into(),
-                                FillMode::None,
-                                None,
-                            );
+                            let anim = leave_anim.with_value(|leave_anim| leave_anim.animate(&el));
 
                             // Remove leaving elements after their exit-animation
                             let closure = Closure::<dyn Fn(web_sys::Event)>::new({
@@ -258,23 +364,7 @@ where
                             on_enter_start(el.clone());
                         }
 
-                        let values = vec![0.0, 1.0];
-
-                        let arr: Array = values
-                            .into_iter()
-                            .map(|opacity| {
-                                serde_wasm_bindgen::to_value(&EnterLeaveKeyframe { opacity })
-                                    .unwrap()
-                            })
-                            .collect();
-
-                        animate(
-                            &el,
-                            Some(&arr.into()),
-                            &ENTER_LEAVE_DURATION.into(),
-                            FillMode::None,
-                            None,
-                        );
+                        enter_anim.with_value(|enter_anim| enter_anim.animate(&el));
 
                         continue;
                     };
@@ -287,37 +377,9 @@ where
                         continue;
                     }
 
-                    let diff = prev_snapshot.position - new_snapshot.position;
-
-                    let arr: Array = [
-                        serde_wasm_bindgen::to_value(&MoveAnimKeyframe {
-                            transform_origin: "top left".to_string(),
-                            transform: format!("translate({}px, {}px)", diff.x, diff.y),
-                            width: animate_size
-                                .then(|| format!("{}px", prev_snapshot.extent.width)),
-                            height: animate_size
-                                .then(|| format!("{}px", prev_snapshot.extent.height)),
-                        })
-                        .unwrap(),
-                        serde_wasm_bindgen::to_value(&MoveAnimKeyframe {
-                            transform_origin: "top left".to_string(),
-                            transform: "none".to_string(),
-                            width: animate_size.then(|| format!("{}px", new_snapshot.extent.width)),
-                            height: animate_size
-                                .then(|| format!("{}px", new_snapshot.extent.height)),
-                        })
-                        .unwrap(),
-                    ]
-                    .into_iter()
-                    .collect();
-
-                    animate(
-                        &el,
-                        Some(&arr.into()),
-                        &MOVE_DURATION.into(),
-                        FillMode::None,
-                        Some("ease-in-out"),
-                    );
+                    move_anim.with_value(|move_anim| {
+                        move_anim.animate(&el, prev_snapshot, new_snapshot, animate_size)
+                    });
                 }
             });
         });
@@ -449,19 +511,6 @@ pub fn AnimatedSwap(content: Signal<View>, #[prop(default = false)] appear: bool
     }
 }
 
-/// Delays a signal to the end of a tick.
-pub fn delay_signal<T: Clone>(source_signal: impl IntoSignal<Value = T>) -> ReadSignal<T> {
-    let source_signal = source_signal.into_signal();
-    let s = RwSignal::new(source_signal.get_untracked());
-
-    create_isomorphic_effect(move |_| {
-        let v = source_signal.get();
-        queue_microtask(move || s.set(v));
-    });
-
-    s.read_only()
-}
-
 fn get_el_snapshot(
     el: &web_sys::HtmlElement,
     record_extent: bool,
@@ -480,10 +529,12 @@ fn get_el_snapshot(
     if handle_margins {
         el.style().set_property("margin", "0px").unwrap();
     }
+
     let position = Position {
         x: el.offset_left() as f64,
         y: el.offset_top() as f64,
     };
+
     if handle_margins {
         el.style().remove_property("margin").unwrap();
     }

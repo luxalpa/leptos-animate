@@ -1,7 +1,8 @@
 use leptos::*;
-use leptos_animate::{AnimatedFor, AnimatedLayout, LayoutEntry, LayoutResult};
+use leptos_animate::{AnimatedFor, AnimatedLayout, FadeAnimation, LayoutEntry, LayoutResult};
 use leptos_meta::*;
 use leptos_router::*;
+use std::time::Duration;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -100,6 +101,9 @@ fn AnimatedForPage() -> impl IntoView {
         }
     };
 
+    let enter_anim = FadeAnimation::new(Duration::from_millis(500), "ease-out");
+    let leave_anim = FadeAnimation::new(Duration::from_millis(500), "ease-out");
+
     view! {
         <div class="main-container">
             <div class="buttons">
@@ -110,7 +114,7 @@ fn AnimatedForPage() -> impl IntoView {
                 <button on:click=reset>"Reset"</button>
             </div>
             <div class="main-grid">
-                <AnimatedFor each key children animate_size=true />
+                <AnimatedFor each key children animate_size=true enter_anim leave_anim />
             </div>
         </div>
     }
