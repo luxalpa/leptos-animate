@@ -35,6 +35,7 @@ body {
   margin-inline: auto;
   background-color: #efefef;
   border-radius: 8px;
+  box-sizing: border-box;
 }
 
 nav {
@@ -88,4 +89,26 @@ nav {
 
 .edit-options-view {
   background-color: #b0b0ff;
+}
+
+.dynamics-page {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 50px;
+  padding: 50px;
+
+  input[type="range"] {
+    width: 200px;
+  }
+
+  ._chartistry {
+    justify-self: center;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    align-content: start;
+  }
 }

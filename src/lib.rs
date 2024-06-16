@@ -1,5 +1,6 @@
 pub use animation::*;
 pub use animation_defs::*;
+pub use dynamics::*;
 pub use position::*;
 
 mod animation;

@@ -1,3 +1,6 @@
+[workspace]
+members = ["examples/leptos-animate-test"]
+
 [package]
 name = "leptos-animate"
 version = "0.1.0"
@@ -16,7 +19,6 @@ anyhow = "1"
 version = "0.3"
 features = [
     "DomRect",
-    #    "CssStyleDeclaration",
     "Animation",
     "KeyframeAnimationOptions",
     "FillMode",
@@ -24,4 +26,4 @@ features = [
 ]
 
 [features]
-ssr = []
+ssr = ["leptos-use/ssr"]

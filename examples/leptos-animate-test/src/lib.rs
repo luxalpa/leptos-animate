@@ -1,4 +1,5 @@
 pub mod app;
+mod dynamics_page;
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]

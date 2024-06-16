@@ -1,3 +1,4 @@
+use crate::dynamics_page::DynamicsPage;
 use leptos::*;
 use leptos_animate::{AnimatedFor, AnimatedLayout, FadeAnimation, LayoutEntry, LayoutResult};
 use leptos_meta::*;
@@ -10,20 +11,17 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
-        // injects a stylesheet into the document <head>
-        // id=leptos means cargo-leptos will hot-reload this stylesheet
         <Stylesheet id="leptos" href="/pkg/leptos-animate-test.css"/>
 
-        // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="Leptos Animate"/>
 
-        // content for this welcome page
         <Router>
             <main>
                 <Navigation/>
                 <Routes>
                     <Route path="" view=AnimatedForPage/>
                     <Route path="/layout" view=AnimatedLayoutPage/>
+                    <Route path="/dynamics" view=DynamicsPage/>
                     <Route path="/*any" view=NotFound/>
                 </Routes>
             </main>
@@ -37,6 +35,7 @@ fn Navigation() -> impl IntoView {
         <nav>
             <A href="/">AnimatedFor</A>
             <A href="/layout">AnimatedLayout</A>
+            <A href="/dynamics">Dynamics</A>
         </nav>
     }
 }
