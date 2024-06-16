@@ -16,6 +16,7 @@ use crate::position::{Extent, Position};
 struct ItemMeta {
     el: Option<web_sys::HtmlElement>,
     scope: Disposer,
+    cur_anim: Option<Animation>,
 }
 
 #[derive(serde::Serialize)]
@@ -276,7 +277,12 @@ where
 
                     alive_items_meta.update_value(|alive_items_meta| {
                         for (k, _) in items_to_remove.iter() {
-                            let Some(ItemMeta { el, scope }) = alive_items_meta.remove(k) else {
+                            let Some(ItemMeta {
+                                el,
+                                scope,
+                                cur_anim,
+                            }) = alive_items_meta.remove(k)
+                            else {
                                 continue;
                             };
 
@@ -302,6 +308,10 @@ where
                                     height: el.offset_height() as f64,
                                 }
                             };
+
+                            if let Some(cur_anim) = cur_anim {
+                                cur_anim.cancel();
+                            }
 
                             let style = el.style();
                             style.set_property("position", "absolute").unwrap();
@@ -353,8 +363,8 @@ where
             if prev.is_none() && !appear {
                 return;
             }
-            alive_items_meta.with_value(|items| {
-                for (k, meta) in items.iter() {
+            alive_items_meta.update_value(|items| {
+                for (k, meta) in items.iter_mut() {
                     let el = meta.el.clone().expect("el always exists on the client");
                     let Some(&prev_snapshot) = snapshots.get(k) else {
                         // Enter-animation
@@ -363,12 +373,17 @@ where
                             on_enter_start(el.clone());
                         }
 
-                        enter_anim.with_value(|enter_anim| enter_anim.animate(&el));
+                        meta.cur_anim.take().map(|cur_anim| cur_anim.cancel());
+
+                        meta.cur_anim =
+                            Some(enter_anim.with_value(|enter_anim| enter_anim.animate(&el)));
 
                         continue;
                     };
 
                     // Move-animation
+
+                    meta.cur_anim.take().map(|cur_anim| cur_anim.cancel());
 
                     let new_snapshot = get_el_snapshot(&el, animate_size, handle_margins);
 
@@ -376,9 +391,9 @@ where
                         continue;
                     }
 
-                    move_anim.with_value(|move_anim| {
+                    meta.cur_anim = Some(move_anim.with_value(|move_anim| {
                         move_anim.animate(&el, prev_snapshot, new_snapshot, animate_size)
-                    });
+                    }));
                 }
             });
         });
@@ -425,7 +440,14 @@ where
                 };
 
                 alive_items_meta.update_value(|meta| {
-                    meta.insert(k, ItemMeta { el, scope });
+                    meta.insert(
+                        k,
+                        ItemMeta {
+                            el,
+                            scope,
+                            cur_anim: None,
+                        },
+                    );
                 });
 
                 view

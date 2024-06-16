@@ -131,7 +131,7 @@ impl MoveAnimation for SlidingAnimation {
 }
 
 fn fuzzy_compare(a: f64, b: f64) -> bool {
-    (a - b).abs() < 0.00001
+    (a - b).abs() < 0.01
 }
 
 pub struct DynamicsAnimation {
@@ -160,8 +160,6 @@ impl DynamicsAnimation {
         }
 
         let duration = Duration::from_secs_f32(data.len() as f32 / ITERATION_RATE);
-
-        logging::log!("DynamicsAnimation duration: {:?}", duration);
 
         Self {
             duration,
