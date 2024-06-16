@@ -1,5 +1,6 @@
-use crate::Position;
-use leptos::Oco;
+use crate::{Position, SecondOrderDynamics};
+use itertools::Itertools;
+use leptos::{logging, Oco};
 use std::time::Duration;
 
 pub struct AnimationConfig<T: serde::Serialize> {
@@ -116,6 +117,60 @@ impl SlidingAnimation {
 }
 
 impl MoveAnimation for SlidingAnimation {
+    type Props = ();
+
+    fn animate(&self, _from: Position, _to: Position) -> AnimationConfigMove {
+        let duration = self.duration;
+        let timing_fn = Some(self.timing_fn.clone());
+
+        AnimationConfigMove {
+            duration,
+            timing_fn,
+        }
+    }
+}
+
+fn fuzzy_compare(a: f64, b: f64) -> bool {
+    (a - b).abs() < 0.00001
+}
+
+pub struct DynamicsAnimation {
+    timing_fn: Oco<'static, str>,
+    duration: Duration,
+}
+
+impl DynamicsAnimation {
+    pub fn new(f: f32, z: f32, r: f32) -> Self {
+        let mut dynamics = SecondOrderDynamics::new(f, z, r, 0.0);
+        let mut data = vec![];
+
+        const ITERATION_RATE: f32 = 15.0;
+
+        loop {
+            dynamics.update(1.0, 1.0 / ITERATION_RATE);
+            data.push(dynamics.get().max(0.0));
+            if data.len() > 1000 {
+                logging::error!("DynamicsAnimation too long!");
+                break;
+            }
+
+            if fuzzy_compare(dynamics.velocity(), 0.0) {
+                break;
+            }
+        }
+
+        let duration = Duration::from_secs_f32(data.len() as f32 / ITERATION_RATE);
+
+        logging::log!("DynamicsAnimation duration: {:?}", duration);
+
+        Self {
+            duration,
+            timing_fn: Oco::Owned(format!("linear({})", data.iter().join(", "))),
+        }
+    }
+}
+
+impl MoveAnimation for DynamicsAnimation {
     type Props = ();
 
     fn animate(&self, _from: Position, _to: Position) -> AnimationConfigMove {

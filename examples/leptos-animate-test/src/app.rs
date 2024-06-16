@@ -1,6 +1,8 @@
 use crate::dynamics_page::DynamicsPage;
 use leptos::*;
-use leptos_animate::{AnimatedFor, AnimatedLayout, FadeAnimation, LayoutEntry, LayoutResult};
+use leptos_animate::{
+    AnimatedFor, AnimatedLayout, DynamicsAnimation, FadeAnimation, LayoutEntry, LayoutResult,
+};
 use leptos_meta::*;
 use leptos_router::*;
 use std::time::Duration;
@@ -102,6 +104,7 @@ fn AnimatedForPage() -> impl IntoView {
 
     let enter_anim = FadeAnimation::new(Duration::from_millis(500), "ease-out");
     let leave_anim = FadeAnimation::new(Duration::from_millis(500), "ease-out");
+    let move_anim = DynamicsAnimation::new(2.0, 0.65, 0.0);
 
     view! {
         <div class="main-container">
@@ -113,7 +116,7 @@ fn AnimatedForPage() -> impl IntoView {
                 <button on:click=reset>"Reset"</button>
             </div>
             <div class="main-grid">
-                <AnimatedFor each key children animate_size=true enter_anim leave_anim />
+                <AnimatedFor each key children animate_size=true enter_anim leave_anim move_anim />
             </div>
         </div>
     }

@@ -68,4 +68,8 @@ where
     pub fn get(&self) -> T {
         self.y
     }
+
+    pub fn velocity(&self) -> T {
+        self.yd
+    }
 }

@@ -1,5 +1,5 @@
 use leptos::*;
-use leptos_animate::{DynamicValue, SecondOrderDynamics};
+use leptos_animate::SecondOrderDynamics;
 use leptos_chartistry::{AspectRatio, AxisMarker, Chart, IntoInner, Series, TickLabels};
 
 #[component]
@@ -52,7 +52,7 @@ pub fn DynamicsPage() -> impl IntoView {
                 />
                 <div>{r}</div>
             </div>
-            <Chart data series aspect_ratio left=TickLabels::aligned_floats() inner />
+            <Chart data series aspect_ratio left=TickLabels::aligned_floats() bottom=TickLabels::aligned_floats() inner />
         </div>
     }
 }
@@ -67,7 +67,7 @@ fn run_dynamics(f: f32, z: f32, r: f32, x0: f64) -> Vec<DataPoint> {
     for i in 0..(FRAME_RATE * DURATION) as usize {
         dynamics.update(1.0 as f64, 1.0 / FRAME_RATE);
         data.push(DataPoint {
-            x: i as f64,
+            x: i as f64 / FRAME_RATE as f64,
             y: dynamics.get(),
         });
     }
