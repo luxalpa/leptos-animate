@@ -1,5 +1,7 @@
+use std::time::Duration;
+
 use leptos::*;
-use leptos_animate::AnimatedSwap;
+use leptos_animate::{AnimatedSwap, FadeAnimation, SizeTransition, SlidingAnimation};
 
 #[derive(Clone)]
 enum Variant {
@@ -27,7 +29,7 @@ pub fn AnimatedSwapPage() -> impl IntoView {
         .into_view(),
         Variant::VariantC => (view! {
             <div class="var-c">
-                "Some more things in variant C"
+                "A larger variant C"
             </div>
         })
         .into_view(),
@@ -36,6 +38,10 @@ pub fn AnimatedSwapPage() -> impl IntoView {
     let set_variant_a = move |_| variant.set(Variant::VariantA);
     let set_variant_b = move |_| variant.set(Variant::VariantB);
     let set_variant_c = move |_| variant.set(Variant::VariantC);
+
+    let resize_anim = SlidingAnimation::new(Duration::from_millis(200), "ease-out");
+    let enter_anim = FadeAnimation::new(Duration::from_millis(200), "ease-out");
+    let leave_anim = FadeAnimation::new(Duration::from_millis(200), "ease-out");
 
     view! {
         <div class="main-container animated-swap-page">
@@ -51,7 +57,9 @@ pub fn AnimatedSwapPage() -> impl IntoView {
                 </button>
             </div>
             <div class="content">
-                <AnimatedSwap content />
+                <SizeTransition resize_anim>
+                    <AnimatedSwap content enter_anim leave_anim />
+                </SizeTransition>
             </div>
         </div>
     }

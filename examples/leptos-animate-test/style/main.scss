@@ -118,5 +118,10 @@ nav {
     padding: 1rem 1.5rem;
     background-color: #ffcd94;
     display: inline-block;
+    overflow: hidden;
+  }
+
+  & .var-c {
+    height: 100px;
   }
 }

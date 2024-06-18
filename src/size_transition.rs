@@ -11,41 +11,38 @@ use web_sys::{FillMode, ResizeObserverSize};
 #[serde(rename_all = "camelCase")]
 struct SizeTransitionKeyframe {
     margin_right: String,
+    margin_bottom: String,
 }
 
 /// Note: Only works for elements that infer their width from their contents;
 /// Does not work for elements that infer their width from their parents (like 1fr grid items or width:100%).
 #[component]
-pub fn SizeTransition(children: Children) -> impl IntoView {
+pub fn SizeTransition(
+    children: Children,
+    #[prop(into, default=SlidingAnimation::default().into())]
+    resize_anim: AnySizeTransitionAnimation,
+) -> impl IntoView {
     view! {
-        <span style="display:inline-block" use:animated_size=SlidingAnimation::default()>
+        <span style="display:inline-block; position:relative;" use:animated_size=resize_anim>
             {children()}
         </span>
     }
 }
 
 trait SizeTransitionHandler {
-    fn animate(&self, el: HtmlElement<AnyElement>, current_width: f64, goal_width: f64);
+    fn animate(&self, el: HtmlElement<AnyElement>, snapshot: Extent, new_snapshot: Extent);
 }
 
 impl<T: ResizeAnimation> SizeTransitionHandler for T {
-    fn animate(&self, el: HtmlElement<AnyElement>, current_width: f64, goal_width: f64) {
-        let r = self.animate(
-            Extent {
-                width: current_width,
-                height: 0.0,
-            },
-            Extent {
-                width: goal_width,
-                height: 0.0,
-            },
-        );
+    fn animate(&self, el: HtmlElement<AnyElement>, snapshot: Extent, new_snapshot: Extent) {
+        let r = self.animate(snapshot, new_snapshot);
 
-        let arr: Array = [current_width, goal_width]
+        let arr: Array = [snapshot, new_snapshot]
             .into_iter()
-            .map(|width| {
+            .map(|snapshot| {
                 serde_wasm_bindgen::to_value(&SizeTransitionKeyframe {
-                    margin_right: format!("{}px", width - goal_width),
+                    margin_right: format!("{}px", snapshot.width - new_snapshot.width),
+                    margin_bottom: format!("{}px", snapshot.height - new_snapshot.height),
                 })
                 .unwrap()
             })
@@ -74,25 +71,27 @@ impl<T: SizeTransitionHandler + 'static> From<T> for AnySizeTransitionAnimation 
     }
 }
 
+impl From<()> for AnySizeTransitionAnimation {
+    fn from(_: ()) -> Self {
+        SlidingAnimation::default().into()
+    }
+}
+
 pub fn animated_size(el: HtmlElement<AnyElement>, size_anim: AnySizeTransitionAnimation) {
-    let last_width = StoredValue::new(None::<f64>);
+    let snapshot = StoredValue::new(None::<Extent>);
 
     use_resize_observer((&*el).clone(), move |entries, _| {
         let rects = entries[0].border_box_size();
         let rect: ResizeObserverSize = rects.get(0).into();
-        let goal_width = rect.inline_size();
-
-        let Some(current_width) = last_width.get_value() else {
-            last_width.set_value(Some(goal_width));
-            return;
+        let new_snapshot = Extent {
+            width: rect.inline_size(),
+            height: rect.block_size(),
         };
 
-        last_width.set_value(Some(goal_width));
+        if let Some(snapshot) = snapshot.get_value() {
+            size_anim.anim.animate(el.clone(), snapshot, new_snapshot);
+        }
 
-        // Animate!
-
-        size_anim
-            .anim
-            .animate(el.clone(), current_width, goal_width);
+        snapshot.set_value(Some(new_snapshot));
     });
 }

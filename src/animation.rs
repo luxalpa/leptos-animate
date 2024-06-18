@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::rc::Rc;
 
-use crate::size_transition::SizeTransition;
 use crate::{EnterAnimation, FadeAnimation, LeaveAnimation, MoveAnimation, SlidingAnimation};
 use indexmap::IndexMap;
 use leptos::leptos_dom::is_server;
@@ -522,7 +521,13 @@ pub fn LxAnimatedShow(
 }
 
 #[component]
-pub fn AnimatedSwap(content: Signal<View>, #[prop(default = false)] appear: bool) -> impl IntoView {
+pub fn AnimatedSwap(
+    content: Signal<View>,
+    #[prop(default = false)] appear: bool,
+    #[prop(default = false)] handle_margins: bool,
+    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: AnyEnterAnimation,
+    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: AnyLeaveAnimation,
+) -> impl IntoView {
     let key = StoredValue::new(0);
 
     let element = Memo::new(move |_| {
@@ -539,9 +544,16 @@ pub fn AnimatedSwap(content: Signal<View>, #[prop(default = false)] appear: bool
     let children_fn = move |_: &i32| element.get();
 
     view! {
-        <SizeTransition>
-            <AnimatedFor each key=move |k| *k children=children_fn appear animate_size=true />
-        </SizeTransition>
+        <AnimatedFor
+            each
+            key=move |k| *k
+            children=children_fn
+            appear
+            animate_size=true
+            enter_anim
+            leave_anim
+            handle_margins
+        />
     }
 }
 
@@ -575,82 +587,6 @@ fn get_el_snapshot(
 
     ElementSnapshot { position, extent }
 }
-
-// #[derive(serde::Serialize)]
-// #[serde(rename_all = "camelCase")]
-// struct ResizeAndMoveAnimKeyframe {
-//     transform_origin: String,
-//     transform: String,
-//     width: String,
-//     height: String,
-//     position: &'static str,
-//     top: String,
-//     left: String,
-// }
-
-/// Animates position and size of an element.
-// pub fn animated_size_and_pos(el: HtmlElement<AnyElement>, about_to_change: Trigger) {
-//     create_effect(move |prev| {
-//         about_to_change.track();
-//         if prev.is_none() {
-//             return;
-//         }
-//
-//         // First get the current values!
-//         let initial = el.get_bounding_client_rect();
-//
-//         // Need to wait a bit for the change that triggered about_to_change to complete
-//         queue_microtask({
-//             let el = el.clone();
-//             move || {
-//                 queue_microtask(move || {
-//                     let snapshot = get_el_snapshot(&el, false, false);
-//                     let new_pos = snapshot.position;
-//                     let new_val = el.get_bounding_client_rect();
-//
-//                     let duration = 100.0;
-//
-//                     let arr: Array = [
-//                         serde_wasm_bindgen::to_value(&ResizeAndMoveAnimKeyframe {
-//                             transform_origin: "top left".to_string(),
-//                             transform: format!(
-//                                 "translate({}px, {}px)",
-//                                 initial.x() - new_val.x(),
-//                                 initial.y() - new_val.y(),
-//                             ),
-//                             width: format!("{}px", initial.width()),
-//                             height: format!("{}px", initial.height()),
-//                             position: "absolute",
-//                             top: format!("{}px", new_pos.y),
-//                             left: format!("{}px", new_pos.x),
-//                         })
-//                         .unwrap(),
-//                         serde_wasm_bindgen::to_value(&ResizeAndMoveAnimKeyframe {
-//                             transform_origin: "top left".to_string(),
-//                             transform: "none".to_string(),
-//                             width: format!("{}px", new_val.width()),
-//                             height: format!("{}px", new_val.height()),
-//                             position: "absolute",
-//                             top: format!("{}px", new_pos.y),
-//                             left: format!("{}px", new_pos.x),
-//                         })
-//                         .unwrap(),
-//                     ]
-//                     .into_iter()
-//                     .collect();
-//
-//                     animate(
-//                         &el,
-//                         Some(&arr.into()),
-//                         &duration.into(),
-//                         FillMode::None,
-//                         Some("ease-out"),
-//                     );
-//                 });
-//             }
-//         });
-//     });
-// }
 
 pub struct LayoutEntry<K: Hash + Eq + Clone + 'static> {
     pub key: K,
