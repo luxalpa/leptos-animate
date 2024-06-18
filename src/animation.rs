@@ -499,64 +499,6 @@ pub fn extract_el_from_view(view: &View) -> anyhow::Result<web_sys::HtmlElement>
     }
 }
 
-#[component]
-pub fn LxAnimatedShow(
-    children: ChildrenFn,
-    when: Signal<bool>,
-    #[prop(default = false)] appear: bool,
-) -> impl IntoView {
-    let each = move || {
-        if when.get() {
-            vec![()]
-        } else {
-            vec![]
-        }
-    };
-
-    let children_fn = move |_d: &()| children();
-
-    view! {
-        <AnimatedFor each key=|_| 0 children=children_fn appear />
-    }
-}
-
-#[component]
-pub fn AnimatedSwap(
-    content: Signal<View>,
-    #[prop(default = false)] appear: bool,
-    #[prop(default = false)] handle_margins: bool,
-    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: AnyEnterAnimation,
-    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: AnyLeaveAnimation,
-) -> impl IntoView {
-    let key = StoredValue::new(0);
-
-    let element = Memo::new(move |_| {
-        let k = (key.get_value() + 1) % 100;
-        key.set_value(k);
-        content.get()
-    });
-
-    let each = move || {
-        element.track();
-        [key.get_value()]
-    };
-
-    let children_fn = move |_: &i32| element.get();
-
-    view! {
-        <AnimatedFor
-            each
-            key=move |k| *k
-            children=children_fn
-            appear
-            animate_size=true
-            enter_anim
-            leave_anim
-            handle_margins
-        />
-    }
-}
-
 fn get_el_snapshot(
     el: &web_sys::HtmlElement,
     record_extent: bool,
@@ -586,53 +528,4 @@ fn get_el_snapshot(
     }
 
     ElementSnapshot { position, extent }
-}
-
-pub struct LayoutEntry<K: Hash + Eq + Clone + 'static> {
-    pub key: K,
-    pub view_fn: Box<dyn Fn() -> View>,
-}
-
-pub struct LayoutResult<K: Hash + Eq + Clone + 'static> {
-    pub class: Option<Oco<'static, str>>,
-    pub entries: Vec<LayoutEntry<K>>,
-}
-
-#[component]
-pub fn AnimatedLayout<K, ContentsFn>(
-    contents: ContentsFn,
-    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: AnyEnterAnimation,
-    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: AnyLeaveAnimation,
-    #[prop(default = SlidingAnimation::default().into(), into)] move_anim: AnyMoveAnimation,
-) -> impl IntoView
-where
-    K: Hash + Eq + Clone + 'static,
-    ContentsFn: Fn() -> LayoutResult<K> + 'static,
-{
-    let new_class = StoredValue::new(None::<Oco<'static, str>>);
-    let class = RwSignal::new(None::<Oco<'static, str>>);
-
-    let each = move || {
-        let contents = contents();
-        new_class.set_value(contents.class);
-        contents.entries
-    };
-
-    let key = move |v: &LayoutEntry<K>| v.key.clone();
-
-    let children = move |v: &LayoutEntry<K>| (v.view_fn)();
-
-    let on_after_snapshot = Callback::new(move |_| {
-        class.set(new_class.get_value());
-    });
-
-    let inner = view! {
-        <AnimatedFor each key children on_after_snapshot animate_size=true enter_anim move_anim leave_anim />
-    };
-
-    view! {
-        <div class=class>
-            {inner}
-        </div>
-    }
 }

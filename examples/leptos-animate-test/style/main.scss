@@ -119,9 +119,19 @@ nav {
     background-color: #ffcd94;
     display: inline-block;
     overflow: hidden;
+    box-sizing: border-box;
   }
 
   & .var-c {
     height: 100px;
+  }
+}
+
+.animated-show-page {
+  & .child {
+    padding: 1rem 1.5rem;
+    background-color: #ffcd94;
+    display: inline-block;
+    box-sizing: border-box;
   }
 }
