@@ -1,3 +1,4 @@
+use crate::animated_swap_page::AnimatedSwapPage;
 use crate::dynamics_page::DynamicsPage;
 use leptos::*;
 use leptos_animate::{
@@ -24,6 +25,7 @@ pub fn App() -> impl IntoView {
                     <Route path="" view=AnimatedForPage/>
                     <Route path="/layout" view=AnimatedLayoutPage/>
                     <Route path="/dynamics" view=DynamicsPage/>
+                    <Route path="/swap" view=AnimatedSwapPage/>
                     <Route path="/*any" view=NotFound/>
                 </Routes>
             </main>
@@ -37,6 +39,7 @@ fn Navigation() -> impl IntoView {
         <nav>
             <A href="/">AnimatedFor</A>
             <A href="/layout">AnimatedLayout</A>
+            <A href="/swap">AnimatedSwap</A>
             <A href="/dynamics">Dynamics</A>
         </nav>
     }

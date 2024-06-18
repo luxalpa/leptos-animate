@@ -112,3 +112,11 @@ nav {
     align-content: start;
   }
 }
+
+.animated-swap-page {
+  & .content {
+    padding: 1rem 1.5rem;
+    background-color: #ffcd94;
+    display: inline-block;
+  }
+}

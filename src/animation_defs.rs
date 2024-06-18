@@ -1,4 +1,4 @@
-use crate::{Position, SecondOrderDynamics};
+use crate::{ElementSnapshot, Extent, SecondOrderDynamics};
 use itertools::Itertools;
 use leptos::{logging, Oco};
 use std::time::Duration;
@@ -14,6 +14,11 @@ pub struct AnimationConfigMove {
     pub timing_fn: Option<Oco<'static, str>>,
 }
 
+pub struct AnimationConfigResize {
+    pub duration: Duration,
+    pub timing_fn: Option<Oco<'static, str>>,
+}
+
 pub trait EnterAnimation {
     type Props: serde::Serialize;
     fn enter(&self) -> AnimationConfig<Self::Props>;
@@ -25,8 +30,12 @@ pub trait LeaveAnimation {
 }
 
 pub trait MoveAnimation {
-    type Props: serde::Serialize;
-    fn animate(&self, from: Position, to: Position) -> AnimationConfigMove;
+    // type Props: serde::Serialize;
+    fn animate(&self, from: ElementSnapshot, to: ElementSnapshot) -> AnimationConfigMove;
+}
+
+pub trait ResizeAnimation {
+    fn animate(&self, from: Extent, to: Extent) -> AnimationConfigResize;
 }
 
 pub struct FadeAnimation {
@@ -117,13 +126,23 @@ impl SlidingAnimation {
 }
 
 impl MoveAnimation for SlidingAnimation {
-    type Props = ();
-
-    fn animate(&self, _from: Position, _to: Position) -> AnimationConfigMove {
+    fn animate(&self, _from: ElementSnapshot, _to: ElementSnapshot) -> AnimationConfigMove {
         let duration = self.duration;
         let timing_fn = Some(self.timing_fn.clone());
 
         AnimationConfigMove {
+            duration,
+            timing_fn,
+        }
+    }
+}
+
+impl ResizeAnimation for SlidingAnimation {
+    fn animate(&self, _from: Extent, _to: Extent) -> AnimationConfigResize {
+        let duration = self.duration;
+        let timing_fn = Some(self.timing_fn.clone());
+
+        AnimationConfigResize {
             duration,
             timing_fn,
         }
@@ -169,13 +188,23 @@ impl DynamicsAnimation {
 }
 
 impl MoveAnimation for DynamicsAnimation {
-    type Props = ();
-
-    fn animate(&self, _from: Position, _to: Position) -> AnimationConfigMove {
+    fn animate(&self, _from: ElementSnapshot, _to: ElementSnapshot) -> AnimationConfigMove {
         let duration = self.duration;
         let timing_fn = Some(self.timing_fn.clone());
 
         AnimationConfigMove {
+            duration,
+            timing_fn,
+        }
+    }
+}
+
+impl ResizeAnimation for DynamicsAnimation {
+    fn animate(&self, _from: Extent, _to: Extent) -> AnimationConfigResize {
+        let duration = self.duration;
+        let timing_fn = Some(self.timing_fn.clone());
+
+        AnimationConfigResize {
             duration,
             timing_fn,
         }

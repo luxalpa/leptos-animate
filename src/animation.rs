@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::rc::Rc;
 
+use crate::size_transition::SizeTransition;
 use crate::{EnterAnimation, FadeAnimation, LeaveAnimation, MoveAnimation, SlidingAnimation};
 use indexmap::IndexMap;
 use leptos::leptos_dom::is_server;
@@ -70,11 +71,11 @@ pub struct ElementSnapshot {
     extent: Extent,
 }
 
-pub trait EnterAnimationTrait {
+trait EnterAnimationHandler {
     fn animate(&self, el: &web_sys::HtmlElement) -> Animation;
 }
 
-impl<T: EnterAnimation> EnterAnimationTrait for T {
+impl<T: EnterAnimation> EnterAnimationHandler for T {
     fn animate(&self, el: &web_sys::HtmlElement) -> Animation {
         let r = self.enter();
 
@@ -94,17 +95,22 @@ impl<T: EnterAnimation> EnterAnimationTrait for T {
     }
 }
 
-impl<T: EnterAnimationTrait + 'static> From<T> for Box<dyn EnterAnimationTrait> {
+#[derive(Clone)]
+pub struct AnyEnterAnimation {
+    anim: Rc<dyn EnterAnimationHandler>,
+}
+
+impl<T: EnterAnimationHandler + 'static> From<T> for AnyEnterAnimation {
     fn from(v: T) -> Self {
-        Box::new(v)
+        AnyEnterAnimation { anim: Rc::new(v) }
     }
 }
 
-pub trait LeaveAnimationTrait {
+pub trait LeaveAnimationHandler {
     fn animate(&self, el: &web_sys::HtmlElement) -> Animation;
 }
 
-impl<T: LeaveAnimation> LeaveAnimationTrait for T {
+impl<T: LeaveAnimation> LeaveAnimationHandler for T {
     fn animate(&self, el: &web_sys::HtmlElement) -> Animation {
         let r = self.leave();
 
@@ -124,13 +130,17 @@ impl<T: LeaveAnimation> LeaveAnimationTrait for T {
     }
 }
 
-impl<T: LeaveAnimationTrait + 'static> From<T> for Box<dyn LeaveAnimationTrait> {
+pub struct AnyLeaveAnimation {
+    anim: Rc<dyn LeaveAnimationHandler>,
+}
+
+impl<T: LeaveAnimationHandler + 'static> From<T> for AnyLeaveAnimation {
     fn from(v: T) -> Self {
-        Box::new(v)
+        AnyLeaveAnimation { anim: Rc::new(v) }
     }
 }
 
-pub trait MoveAnimationTrait {
+pub trait MoveAnimationHandler {
     fn animate(
         &self,
         el: &web_sys::HtmlElement,
@@ -140,7 +150,7 @@ pub trait MoveAnimationTrait {
     ) -> Animation;
 }
 
-impl<T: MoveAnimation> MoveAnimationTrait for T {
+impl<T: MoveAnimation> MoveAnimationHandler for T {
     fn animate(
         &self,
         el: &web_sys::HtmlElement,
@@ -148,7 +158,7 @@ impl<T: MoveAnimation> MoveAnimationTrait for T {
         new_snapshot: ElementSnapshot,
         animate_size: bool,
     ) -> Animation {
-        let r = self.animate(prev_snapshot.position, new_snapshot.position);
+        let r = self.animate(prev_snapshot, new_snapshot);
 
         let diff = prev_snapshot.position - new_snapshot.position;
 
@@ -181,9 +191,13 @@ impl<T: MoveAnimation> MoveAnimationTrait for T {
     }
 }
 
-impl<T: MoveAnimationTrait + 'static> From<T> for Box<dyn MoveAnimationTrait> {
+pub struct AnyMoveAnimation {
+    anim: Rc<dyn MoveAnimationHandler>,
+}
+
+impl<T: MoveAnimationHandler + 'static> From<T> for AnyMoveAnimation {
     fn from(v: T) -> Self {
-        Box::new(v)
+        AnyMoveAnimation { anim: Rc::new(v) }
     }
 }
 
@@ -198,15 +212,9 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     #[prop(default = false)] appear: bool,
     #[prop(default = false)] animate_size: bool,
     #[prop(default = false)] handle_margins: bool,
-    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: Box<
-        dyn EnterAnimationTrait,
-    >,
-    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: Box<
-        dyn LeaveAnimationTrait,
-    >,
-    #[prop(default = SlidingAnimation::default().into(), into)] move_anim: Box<
-        dyn MoveAnimationTrait,
-    >,
+    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: AnyEnterAnimation,
+    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: AnyLeaveAnimation,
+    #[prop(default = SlidingAnimation::default().into(), into)] move_anim: AnyMoveAnimation,
 ) -> impl IntoView
 where
     IF: Fn() -> I + 'static,
@@ -251,7 +259,7 @@ where
                 .collect::<HashMap<_, _>>()
         });
 
-        // Move leaving items back to alive if they are re-added during the animation
+        // Items that are re-added during the animation while they are still leaving must be removed from the leaving_items list and will then be treated as new elements (Their scope already got disposed, so there's no way to resurrect them).
         for k in new_items.keys() {
             if leaving_items.with_untracked(|leaving_items| leaving_items.contains_key(k)) {
                 leaving_items.update(|leaving_items| {
@@ -330,7 +338,8 @@ where
                                 .set_property("height", &format!("{}px", extent.height))
                                 .unwrap();
 
-                            let anim = leave_anim.with_value(|leave_anim| leave_anim.animate(&el));
+                            let anim =
+                                leave_anim.with_value(|leave_anim| leave_anim.anim.animate(&el));
 
                             // Remove leaving elements after their exit-animation
                             let closure = Closure::<dyn Fn(web_sys::Event)>::new({
@@ -376,7 +385,7 @@ where
                         meta.cur_anim.take().map(|cur_anim| cur_anim.cancel());
 
                         meta.cur_anim =
-                            Some(enter_anim.with_value(|enter_anim| enter_anim.animate(&el)));
+                            Some(enter_anim.with_value(|enter_anim| enter_anim.anim.animate(&el)));
 
                         continue;
                     };
@@ -392,7 +401,9 @@ where
                     }
 
                     meta.cur_anim = Some(move_anim.with_value(|move_anim| {
-                        move_anim.animate(&el, prev_snapshot, new_snapshot, animate_size)
+                        move_anim
+                            .anim
+                            .animate(&el, prev_snapshot, new_snapshot, animate_size)
                     }));
                 }
             });
@@ -528,7 +539,9 @@ pub fn AnimatedSwap(content: Signal<View>, #[prop(default = false)] appear: bool
     let children_fn = move |_: &i32| element.get();
 
     view! {
-        <AnimatedFor each key=move |k| *k children=children_fn appear />
+        <SizeTransition>
+            <AnimatedFor each key=move |k| *k children=children_fn appear animate_size=true />
+        </SizeTransition>
     }
 }
 
@@ -652,15 +665,9 @@ pub struct LayoutResult<K: Hash + Eq + Clone + 'static> {
 #[component]
 pub fn AnimatedLayout<K, ContentsFn>(
     contents: ContentsFn,
-    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: Box<
-        dyn EnterAnimationTrait,
-    >,
-    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: Box<
-        dyn LeaveAnimationTrait,
-    >,
-    #[prop(default = SlidingAnimation::default().into(), into)] move_anim: Box<
-        dyn MoveAnimationTrait,
-    >,
+    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: AnyEnterAnimation,
+    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: AnyLeaveAnimation,
+    #[prop(default = SlidingAnimation::default().into(), into)] move_anim: AnyMoveAnimation,
 ) -> impl IntoView
 where
     K: Hash + Eq + Clone + 'static,

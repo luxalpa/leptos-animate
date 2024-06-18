@@ -1,3 +1,4 @@
+mod animated_swap_page;
 pub mod app;
 mod dynamics_page;
 

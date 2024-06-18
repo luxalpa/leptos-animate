@@ -4,11 +4,11 @@ use leptos_chartistry::{AspectRatio, AxisMarker, Chart, IntoInner, Series, TickL
 
 #[component]
 pub fn DynamicsPage() -> impl IntoView {
-    let frequency = RwSignal::new(0.2);
+    let frequency = RwSignal::new(0.5);
     let z = RwSignal::new(0.5);
-    let r = RwSignal::new(0.5);
+    let r = RwSignal::new(0.0);
 
-    let data = Signal::derive(move || run_dynamics(frequency.get(), z.get(), r.get(), 0.0));
+    let data = Signal::derive(move || run_dynamics(frequency.get(), z.get(), r.get()));
 
     let series = Series::new(|p: &DataPoint| p.x).line(|p: &DataPoint| p.y);
     let aspect_ratio = AspectRatio::from_outer_height(300.0, 1.2);
@@ -57,8 +57,8 @@ pub fn DynamicsPage() -> impl IntoView {
     }
 }
 
-fn run_dynamics(f: f32, z: f32, r: f32, x0: f64) -> Vec<DataPoint> {
-    let mut dynamics = SecondOrderDynamics::new(f, z, r, x0);
+fn run_dynamics(f: f32, z: f32, r: f32) -> Vec<DataPoint> {
+    let mut dynamics = SecondOrderDynamics::new(f, z, r, 0.0);
     let mut data = vec![];
 
     const FRAME_RATE: f32 = 60.0;
