@@ -1,3 +1,4 @@
+/// Screen position of an element.
 #[derive(Clone, Copy, Debug)]
 pub struct Position {
     pub x: f64,
@@ -48,6 +49,7 @@ impl From<(f64, f64)> for Position {
     }
 }
 
+/// Size of an element.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Extent {
     pub width: f64,

@@ -14,8 +14,14 @@ struct SizeTransitionKeyframe {
     margin_bottom: String,
 }
 
-/// Note: Only works for elements that infer their width from their contents;
-/// Does not work for elements that infer their width from their parents (like 1fr grid items or width:100%).
+/// Animates the size of its contents whenever that changes.
+///
+/// Note: Only works for elements that infer their size from their contents;
+/// Does not work for elements that infer their size from their parents (like 1fr grid items or width:100%).
+///
+/// Uses a ResizeObserver to listen for size changes. Wraps the children in a span with `display:inline-block` and `position:relative`.
+///
+/// **Note:** The size is animated using `margin-right` (for width) and margin-bottom (for height) instead of `width`/`height` in order to not trip up the underlying `ResizeObserver`.
 #[component]
 pub fn SizeTransition(
     children: Children,
@@ -58,6 +64,8 @@ impl<T: ResizeAnimation> SizeTransitionHandler for T {
     }
 }
 
+/// Any struct that implements [`ResizeAnimation`] can be converted into this using into(). This
+/// conversion is typically done automatically.
 #[derive(Clone)]
 pub struct AnySizeTransitionAnimation {
     anim: Rc<dyn SizeTransitionHandler>,
@@ -77,6 +85,17 @@ impl From<()> for AnySizeTransitionAnimation {
     }
 }
 
+/// Directive to animate the size of an element. See [`SizeTransition`].
+///
+/// # Usage
+/// ```
+/// // This is optional, it will default to SlidingAnimation::default() if not provided.
+/// let resize_anim = SlidingAnimation::default();
+///
+/// <span style="display:inline-block; position:relative;" use:animated_size=resize_anim>
+///     <SomeElementThatChangesItsSize />
+/// </span>
+/// ```
 pub fn animated_size(el: HtmlElement<AnyElement>, size_anim: AnySizeTransitionAnimation) {
     let snapshot = StoredValue::new(None::<Extent>);
 

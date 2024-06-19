@@ -3,41 +3,72 @@ use itertools::Itertools;
 use leptos::{logging, Oco};
 use std::time::Duration;
 
+/// Return value for any enter/leave animation.
 pub struct AnimationConfig<T: serde::Serialize> {
+    /// Duration of the animation
     pub duration: Duration,
+
+    /// Timing function of the animation (passed as the [`easing` parameter](https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffect/KeyframeEffect#easing) to JS)
     pub timing_fn: Option<Oco<'static, str>>,
+
+    /// Keyframes. Ensure that `T` uses `#[serde(rename_all = "camelCase")]`
     pub keyframes: Vec<T>,
 }
 
+/// Return value for any move animation.
 pub struct AnimationConfigMove {
+    /// Duration of the animation
     pub duration: Duration,
+
+    /// Timing function of the animation (passed as the [`easing` parameter](https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffect/KeyframeEffect#easing) to JS)
     pub timing_fn: Option<Oco<'static, str>>,
 }
 
+/// Return value for any resize animation - currently only used in [`SizeTransition`][crate::SizeTransition].
 pub struct AnimationConfigResize {
+    /// Duration of the animation
     pub duration: Duration,
+
+    /// Timing function of the animation (passed as the [`easing` parameter](https://developer.mozilla.org/en-US/docs/Web/API/KeyframeEffect/KeyframeEffect#easing) to JS)
     pub timing_fn: Option<Oco<'static, str>>,
 }
 
+/// Trait for defining an enter animation.
 pub trait EnterAnimation {
+    /// The CSS properties on the keyframes.
     type Props: serde::Serialize;
+
+    /// Generate the keyframes, timing function, duration, etc.
     fn enter(&self) -> AnimationConfig<Self::Props>;
 }
 
+/// Trait for defining a leave animation.
 pub trait LeaveAnimation {
+    /// The CSS properties on the keyframes.
     type Props: serde::Serialize;
+
+    /// Generate the keyframes, timing function, duration, etc.
     fn leave(&self) -> AnimationConfig<Self::Props>;
 }
 
+/// Trait for defining a move animation.
 pub trait MoveAnimation {
     // type Props: serde::Serialize;
+
+    /// Generate the timing function and duration. Currently does not support keyframes.
+    /// The `from` and `to` parameters are not useful currently. Also, `ElementSnapshot::extent`
+    /// will be 0 if `animate_size` is not set on the [`AnimatedFor`][crate::AnimatedFor].
     fn animate(&self, from: ElementSnapshot, to: ElementSnapshot) -> AnimationConfigMove;
 }
 
+/// Trait for defining a resize animation (currently only used in [`SizeTransition`][crate::SizeTransition]).
 pub trait ResizeAnimation {
+    /// Generate the timing function and duration. Currently does not support keyframes which makes
+    /// the `from` and `to` parameters not very useful.
     fn animate(&self, from: Extent, to: Extent) -> AnimationConfigResize;
 }
 
+/// A simple enter / leave animation that fades the elements in and out using `opacity`
 pub struct FadeAnimation {
     pub timing_fn: Oco<'static, str>,
     pub duration: Duration,
@@ -61,6 +92,7 @@ impl Default for FadeAnimation {
     }
 }
 
+#[doc(hidden)]
 #[derive(serde::Serialize)]
 pub struct FadeAnimationProps {
     opacity: f64,
@@ -102,6 +134,7 @@ impl LeaveAnimation for FadeAnimation {
     }
 }
 
+/// A simple move / resize animation that changes the respective props based on the timing function.
 pub struct SlidingAnimation {
     pub timing_fn: Oco<'static, str>,
     pub duration: Duration,
@@ -153,6 +186,7 @@ fn fuzzy_compare(a: f64, b: f64) -> bool {
     (a - b).abs() < 0.01
 }
 
+/// A move / resize animation using [second order dynamics](https://www.youtube.com/watch?v=KPoeNZZ6H4s).
 pub struct DynamicsAnimation {
     timing_fn: Oco<'static, str>,
     duration: Duration,

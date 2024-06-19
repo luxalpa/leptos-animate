@@ -18,7 +18,7 @@ impl DynamicValue for f64 {
     }
 }
 
-// https://www.youtube.com/watch?v=KPoeNZZ6H4s
+/// <https://www.youtube.com/watch?v=KPoeNZZ6H4s>
 pub struct SecondOrderDynamics<T>
 where
     T: DynamicValue,

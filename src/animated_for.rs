@@ -13,26 +13,39 @@ use web_sys::{Animation, FillMode};
 
 use crate::position::{Extent, Position};
 
+/// Metadata for each item that's currently alive in the AnimatedFor.
 struct ItemMeta {
+    /// Reference to the HTML element, if we found one
     el: Option<web_sys::HtmlElement>,
+
+    /// Reference to the scope which will be dropped when the item is removed.
+    /// Used to prevent reactive state changes during the leave-animation.
     scope: Disposer,
+
+    /// The current animation that's running on the element.
+    /// We want to cancel this animation when we start a new one so that we don't have two running
+    /// at the same time.
     cur_anim: Option<Animation>,
 }
 
+/// Keyframe for the FLIP animation.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MoveAnimKeyframe {
     transform_origin: String,
     transform: String,
 
+    /// Only set if `animate_size` is true
     #[serde(skip_serializing_if = "Option::is_none")]
     width: Option<String>,
 
+    /// Only set if `animate_size` is true
     #[serde(skip_serializing_if = "Option::is_none")]
     height: Option<String>,
 }
 
-// wrapper because the Animation API is unstable and that causes some problems with cranelift.
+/// Wrapper around the `animate` function in the Web Animations API because in web_sys it is still
+/// unstable and that causes some problems with cranelift.
 pub fn animate(
     el: &web_sys::HtmlElement,
     keyframes: Option<&js_sys::Object>,
@@ -64,20 +77,30 @@ pub fn animate(
     }
 }
 
+/// A snapshot of an element's position and size at a specific moment.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ElementSnapshot {
+    /// The position of the element.
     position: Position,
+
+    /// The height and width of the element.
     extent: Extent,
 }
 
+/// Wrapper trait for [`EnterAnimation`] to be used as a dyn trait. The original trait is not
+/// object-safe because it has an associated type.
 trait EnterAnimationHandler {
+    /// Run the enter-animation. The returned `Animation` may be used to cancel the animation later
+    /// as well as to trigger a callback when the animation finishes.
     fn animate(&self, el: &web_sys::HtmlElement) -> Animation;
 }
 
+/// Automatically implemented on all `EnterAnimation`s.
 impl<T: EnterAnimation> EnterAnimationHandler for T {
     fn animate(&self, el: &web_sys::HtmlElement) -> Animation {
         let r = self.enter();
 
+        // Build the JavaScript object from the animations keyframes.
         let arr: Array = r
             .keyframes
             .into_iter()
@@ -88,31 +111,39 @@ impl<T: EnterAnimation> EnterAnimationHandler for T {
             &el,
             Some(&arr.into()),
             &(r.duration.as_secs_f64() * 1000.0).into(),
+            // The fill mode can shadow timing bugs, so we avoid it as much as possible.
             FillMode::None,
             r.timing_fn.as_ref().map(|v| v.as_str()),
         )
     }
 }
 
-#[derive(Clone)]
+/// Any struct that implements [`EnterAnimation`] can be converted into this using `into()`.
+/// The props on the various components will do this automatically.
 pub struct AnyEnterAnimation {
-    anim: Rc<dyn EnterAnimationHandler>,
+    anim: Box<dyn EnterAnimationHandler>,
 }
 
+/// Any [`EnterAnimation`] can be converted to an [`AnyEnterAnimation`] using the intermediate
+/// dyn Trait.
 impl<T: EnterAnimationHandler + 'static> From<T> for AnyEnterAnimation {
     fn from(v: T) -> Self {
-        AnyEnterAnimation { anim: Rc::new(v) }
+        AnyEnterAnimation { anim: Box::new(v) }
     }
 }
 
-pub trait LeaveAnimationHandler {
+/// Wrapper trait for [`LeaveAnimation`] to be used as a dyn trait. The original trait is not
+/// object-safe because it has an associated type.
+trait LeaveAnimationHandler {
     fn animate(&self, el: &web_sys::HtmlElement) -> Animation;
 }
 
+/// Automatically implemented on all `LeaveAnimation`s.
 impl<T: LeaveAnimation> LeaveAnimationHandler for T {
     fn animate(&self, el: &web_sys::HtmlElement) -> Animation {
         let r = self.leave();
 
+        // Build the JavaScript object from the animations keyframes.
         let arr: Array = r
             .keyframes
             .into_iter()
@@ -129,17 +160,22 @@ impl<T: LeaveAnimation> LeaveAnimationHandler for T {
     }
 }
 
+/// Any struct that implements [`LeaveAnimation`] can be converted into this using `into()`.
+/// The props on the various components will do this automatically.
 pub struct AnyLeaveAnimation {
-    anim: Rc<dyn LeaveAnimationHandler>,
+    anim: Box<dyn LeaveAnimationHandler>,
 }
 
+/// Any [`LeaveAnimation`] can be converted to an [`AnyLeaveAnimation`] using the intermediate dyn Trait.
 impl<T: LeaveAnimationHandler + 'static> From<T> for AnyLeaveAnimation {
     fn from(v: T) -> Self {
-        AnyLeaveAnimation { anim: Rc::new(v) }
+        AnyLeaveAnimation { anim: Box::new(v) }
     }
 }
 
-pub trait MoveAnimationHandler {
+/// Wrapper trait for [`MoveAnimation`] to be used as a dyn trait. The original trait is not
+/// object-safe because it has an associated type.
+trait MoveAnimationHandler {
     fn animate(
         &self,
         el: &web_sys::HtmlElement,
@@ -161,6 +197,7 @@ impl<T: MoveAnimation> MoveAnimationHandler for T {
 
         let diff = prev_snapshot.position - new_snapshot.position;
 
+        // Build the JavaScript object. Move Animations don't support keyframes yet.
         let arr: Array = [
             serde_wasm_bindgen::to_value(&MoveAnimKeyframe {
                 transform_origin: "top left".to_string(),
@@ -190,30 +227,161 @@ impl<T: MoveAnimation> MoveAnimationHandler for T {
     }
 }
 
+/// Any struct that implements [`MoveAnimation`] can be converted into this using `into()`.
 pub struct AnyMoveAnimation {
-    anim: Rc<dyn MoveAnimationHandler>,
+    anim: Box<dyn MoveAnimationHandler>,
 }
 
+/// Any [`MoveAnimation`] can be converted to an [`AnyMoveAnimation`] using the intermediate
+/// dyn Trait.
 impl<T: MoveAnimationHandler + 'static> From<T> for AnyMoveAnimation {
     fn from(v: T) -> Self {
-        AnyMoveAnimation { anim: Rc::new(v) }
+        AnyMoveAnimation { anim: Box::new(v) }
     }
 }
 
+/// A version of the [`<For />`][leptos::For] component that animates children when they enter or
+/// leave, as well as moving them around when their position changes.
+///
+/// # Example
+/// ```
+/// #[component]
+/// pub fn MyGrid() -> impl IntoView {
+///     let next_key = StoredValue::new(6);
+///     let elements = RwSignal::new(vec![1, 2, 3, 4, 5]);
+///
+///     let get_next_key = move || {
+///         let v = next_key.get_value();
+///         next_key.update_value(|v| *v += 1);
+///         v
+///     };
+///
+///     let insert_first = move |_| {
+///         elements.update(|v| {
+///             v.insert(0, get_next_key());
+///         })
+///     };
+///
+///     let remove_first = move |_| {
+///         elements.update(|v| {
+///             v.remove(0);
+///         })
+///     };
+///
+///     let each = move || elements.get();
+///
+///     let children = move |c: &i32| {
+///         let c = *c;
+///         view! {
+///             <div class="element">{c}</div>
+///         }
+///     };
+///
+///     // Unique key for each item
+///     let key = move |v: &i32| *v;
+///     
+///     // Optional enter animations
+///     let enter_anim = FadeAnimation::new(Duration::from_millis(500), "ease-out");
+///     let leave_anim = FadeAnimation::new(Duration::from_millis(500), "ease-out");
+///     let move_anim = DynamicsAnimation::new(2.0, 0.65, 0.0);
+///
+///     view! {
+///         <button on:click=insert_first>"+ Add"</button>
+///         <button on:click=remove_first>"- Remove"</button>
+///         <div style="display:grid;grid-template-columns: 100px 100px 200px;">
+///             <AnimatedFor each key children animate_size=true enter_anim leave_anim move_anim />
+///         </div>
+///     }
+/// }
+/// ```
 #[component]
 pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
+    /// A signal-like function that returns the items to iterate over.
+    ///
+    /// Please note, unlike on [`<For />`][leptos::For], the items are stored inside this component
+    /// and only references to them are passed to the `children`. This is because `AnimatedFor`
+    /// actually renders the items in an underlying `For` component whose `each` function has to be
+    /// rerun more frequently than this one.
     each: IF,
+
+    /// A function that returns a key that is unique for each item currently in the list.
     key: KF,
+
+    /// A function that receives a reference to the item and returns the view to render it.
+    /// Just like on the [`<For />`][leptos::For] component, this will only rerun if the item with
+    /// the key is being removed and then re-added later.
+    ///
+    /// **Please note**, unlike the [`<For />`][leptos::For] component, this only gets a reference,
+    /// not the original value. If you need to take ownership of the item, you need to clone or
+    /// copy it.
+    ///
+    /// The returned View must have a DOM node as its top level element, or a component that does.
+    /// Due to the way leptos works, we cannot currently extract node-refs from other elements such
+    /// as `Suspense`, `DynChild`, `Each`, etc. Also Fragments/Components that return multiple
+    /// elements will only have their first element animated.
+    ///
+    /// The elements should be able to handle being set to `position:absolute` during the
+    /// leave-animation, although it will fix their size in place (so for example an element with
+    /// `width:100%` will still work). Ideally the elements should also be block-like elements
+    /// without margins.
     children: EF,
-    #[prop(optional)] on_leave_start: Option<Callback<(web_sys::HtmlElement, Position)>>,
-    #[prop(optional)] on_enter_start: Option<Callback<web_sys::HtmlElement>>,
-    #[prop(optional)] on_after_snapshot: Option<Callback<()>>,
-    #[prop(default = false)] appear: bool,
-    #[prop(default = false)] animate_size: bool,
-    #[prop(default = false)] handle_margins: bool,
-    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: AnyEnterAnimation,
-    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: AnyLeaveAnimation,
-    #[prop(default = SlidingAnimation::default().into(), into)] move_anim: AnyMoveAnimation,
+
+    /// Callback that is called for each item when it is about to start its leaving animation
+    /// after it has been snapshotted. Useful to handle additional style changes that happen at the
+    /// same time when `each` changes, for example if you want to apply a counter-animation. Note
+    /// that leaving items are set to `position:absolute`.
+    ///
+    /// See also [`AnimatedLayout`][crate::AnimatedLayout].
+    #[prop(optional)]
+    on_leave_start: Option<Callback<(web_sys::HtmlElement, Position)>>,
+
+    /// See `on_leave_start`.
+    #[prop(optional)]
+    on_enter_start: Option<Callback<web_sys::HtmlElement>>,
+
+    /// Callback that is called after the initial snapshots of all elements have been taken but
+    /// before the goal snapshots are taken. This is the time to apply CSS changes to the elements
+    /// or to the container and have the elements be able to animate to their new positions.
+    #[prop(optional)]
+    on_after_snapshot: Option<Callback<()>>,
+
+    /// Whether enter animations play when the component is initially rendered. This is usually not
+    /// what you want. On SSR this will cause visual glitches because the enter animation would
+    /// start much later than the initial render.
+    #[prop(default = false)]
+    appear: bool,
+
+    /// Whether to also animate the sizes of the elements for move animations, for example in a
+    /// grid with differently sized columns or rows.
+    ///
+    /// Please note this only works for sizes that are specified "top-down",
+    /// like column widths with `px`, `%` or `fr` as their units. It will not work for sizes that
+    /// depend on the contents such as `grid-template-columns:auto 1fr`. This is because those
+    /// columns will see the size during the entire move animation and therefore would adjust
+    /// their own size during the animation. [`SizeTransition`][crate::SizeTransition] can handle
+    /// that case in some situations.
+    #[prop(default = false)]
+    animate_size: bool,
+
+    /// Whether the child elements can have margins applied. This will simply remove the margins
+    /// during the snapshotting process for element positions and then reapply them, as such it is
+    /// fairly expensive to do. Typically it's better to just wrap your element that has a margin
+    /// applied in another element that doesn't. Also this won't handle margins on inline elements
+    /// in child-elements (those act really weird!).
+    #[prop(default = false)]
+    handle_margins: bool,
+
+    /// The enter animation to use for new elements.
+    #[prop(default = FadeAnimation::default().into(), into)]
+    enter_anim: AnyEnterAnimation,
+
+    /// The leave animation to use for elements that are removed.
+    #[prop(default = FadeAnimation::default().into(), into)]
+    leave_anim: AnyLeaveAnimation,
+
+    /// The move animation to use for elements that change position.
+    #[prop(default = SlidingAnimation::default().into(), into)]
+    move_anim: AnyMoveAnimation,
 ) -> impl IntoView
 where
     IF: Fn() -> I + 'static,
@@ -224,21 +392,25 @@ where
     K: Eq + Hash + Clone + 'static,
     T: 'static,
 {
+    let key_fn = StoredValue::new(key);
+
     let alive_items = RwSignal::new(IndexMap::<K, T>::new());
     let leaving_items = RwSignal::new(IndexMap::<K, T>::new());
-    let key_fn = StoredValue::new(key);
+
     let alive_items_meta = StoredValue::new(HashMap::<K, ItemMeta>::new());
+
     let enter_anim = StoredValue::new(enter_anim);
     let leave_anim = StoredValue::new(leave_anim);
     let move_anim = StoredValue::new(move_anim);
 
+    // Listen to changes in `each`. This handles all the animations.
     create_isomorphic_effect(move |prev| {
         let new_items = each()
             .into_iter()
             .map(|i| (key_fn.with_value(|k| k(&i)), i))
             .collect::<IndexMap<_, _>>();
 
-        // Get initial snapshots of all elements
+        // Get initial snapshots of all previously alive elements
         let snapshots = alive_items_meta.with_value(|alive_items_meta| {
             alive_items_meta
                 .iter()
@@ -258,7 +430,9 @@ where
                 .collect::<HashMap<_, _>>()
         });
 
-        // Items that are re-added during the animation while they are still leaving must be removed from the leaving_items list and will then be treated as new elements (Their scope already got disposed, so there's no way to resurrect them).
+        // Items that are re-added during the animation while they are still leaving must be
+        // removed from the leaving_items list and will then be treated as new elements (Their
+        // scope already got disposed, so there's no way to resurrect them).
         for k in new_items.keys() {
             if leaving_items.with_untracked(|leaving_items| leaving_items.contains_key(k)) {
                 leaving_items.update(|leaving_items| {
@@ -272,7 +446,7 @@ where
             on_after_snapshot(());
         }
 
-        // Update alive items and trigger exit-animations
+        // Update alive items and trigger leave-animations
         batch({
             let snapshots = &snapshots;
             move || {
@@ -434,6 +608,7 @@ where
                 })
             }));
 
+            // Register children refs and scopes.
             move |k: K| {
                 let (view, scope) = wrapped_children(k.clone());
 
@@ -470,7 +645,9 @@ where
     }
 }
 
-pub fn extract_el_from_view(view: &View) -> anyhow::Result<web_sys::HtmlElement> {
+/// Get the node ref from a view. Ideally we'd like to have refs to the comment node or something
+/// that this view represents, but that's currently not possible.
+fn extract_el_from_view(view: &View) -> anyhow::Result<web_sys::HtmlElement> {
     use wasm_bindgen::JsCast;
     match view {
         View::Component(component) => {
@@ -499,6 +676,7 @@ pub fn extract_el_from_view(view: &View) -> anyhow::Result<web_sys::HtmlElement>
     }
 }
 
+/// Take a snapshot of an element's position and (optionally) size.
 fn get_el_snapshot(
     el: &web_sys::HtmlElement,
     record_extent: bool,
@@ -506,6 +684,8 @@ fn get_el_snapshot(
 ) -> ElementSnapshot {
     let extent = record_extent
         .then(|| {
+            // We're using GetBoundingClientRect here because offsetWidth/Height aren't truthful
+            // when it comes to paddings.
             let rect = el.get_bounding_client_rect();
             Extent {
                 width: rect.width(),
@@ -514,10 +694,13 @@ fn get_el_snapshot(
         })
         .unwrap_or_default();
 
+    // offsetWidth/Height don't include margins.
     if handle_margins {
         el.style().set_property("margin", "0px").unwrap();
     }
 
+    // We're not using GetBoundingClientRect here because the position it returns is in viewport
+    // space, but we need it for position:absolute.
     let position = Position {
         x: el.offset_left() as f64,
         y: el.offset_top() as f64,

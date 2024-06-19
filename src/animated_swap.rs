@@ -1,13 +1,27 @@
 use crate::{AnimatedFor, AnyEnterAnimation, AnyLeaveAnimation, FadeAnimation};
 use leptos::*;
 
+/// Animated transition between views.
 #[component]
 pub fn AnimatedSwap(
+    /// The view to show.
     content: Signal<View>,
-    #[prop(default = false)] appear: bool,
-    #[prop(default = false)] handle_margins: bool,
-    #[prop(default = FadeAnimation::default().into(), into)] enter_anim: AnyEnterAnimation,
-    #[prop(default = FadeAnimation::default().into(), into)] leave_anim: AnyLeaveAnimation,
+
+    /// See this prop on [`AnimatedFor`].
+    #[prop(default = false)]
+    appear: bool,
+
+    /// See this prop on [`AnimatedFor`].
+    #[prop(default = false)]
+    handle_margins: bool,
+
+    /// See this prop on [`AnimatedFor`].
+    #[prop(default = FadeAnimation::default().into(), into)]
+    enter_anim: AnyEnterAnimation,
+
+    /// See this prop on [`AnimatedFor`].
+    #[prop(default = FadeAnimation::default().into(), into)]
+    leave_anim: AnyLeaveAnimation,
 ) -> impl IntoView {
     let key = StoredValue::new(0);
 
