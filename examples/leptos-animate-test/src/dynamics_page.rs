@@ -10,7 +10,9 @@ pub fn DynamicsPage() -> impl IntoView {
 
     let data = Signal::derive(move || run_dynamics(frequency.get(), z.get(), r.get()));
 
-    let series = Series::new(|p: &DataPoint| p.x).line(|p: &DataPoint| p.y);
+    let series = Series::new(|p: &DataPoint| p.x)
+        .line(|p: &DataPoint| p.y)
+        .line(|_: &DataPoint| 1.0);
     let aspect_ratio = AspectRatio::from_outer_height(300.0, 1.2);
 
     let on_frequency_input = move |ev| {
@@ -61,15 +63,18 @@ fn run_dynamics(f: f32, z: f32, r: f32) -> Vec<DataPoint> {
     let mut dynamics = SecondOrderDynamics::new(f, z, r, 0.0);
     let mut data = vec![];
 
-    const FRAME_RATE: f32 = 60.0;
+    const ITERATION_RATE: f32 = 15.0;
     const DURATION: f32 = 2.0;
 
-    for i in 0..(FRAME_RATE * DURATION) as usize {
-        dynamics.update(1.0 as f64, 1.0 / FRAME_RATE);
+    loop {
+        dynamics.update(1.0, 1.0 / ITERATION_RATE);
         data.push(DataPoint {
-            x: i as f64 / FRAME_RATE as f64,
-            y: dynamics.get(),
+            x: data.len() as f64 / ITERATION_RATE as f64,
+            y: dynamics.get().max(-2.0).min(2.0),
         });
+        if data.len() as f32 > ITERATION_RATE * DURATION {
+            break;
+        }
     }
 
     data

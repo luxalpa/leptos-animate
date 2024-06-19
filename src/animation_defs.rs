@@ -167,7 +167,7 @@ impl DynamicsAnimation {
 
         loop {
             dynamics.update(1.0, 1.0 / ITERATION_RATE);
-            data.push(dynamics.get().max(0.0));
+            data.push(dynamics.get());
             if data.len() > 1000 {
                 logging::error!("DynamicsAnimation too long!");
                 break;

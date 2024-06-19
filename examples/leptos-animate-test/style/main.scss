@@ -93,12 +93,12 @@ nav {
 
 .dynamics-page {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
   gap: 50px;
   padding: 50px;
 
   input[type="range"] {
-    width: 200px;
+    width: 100%;
   }
 
   ._chartistry {
