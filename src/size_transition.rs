@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{animate, Extent, ResizeAnimation, SlidingAnimation};
 use leptos::html::AnyElement;
-use leptos::{component, view, Children, HtmlElement, IntoView, StoredValue};
+use leptos::*;
 use leptos_use::use_resize_observer;
 use web_sys::js_sys::Array;
 use web_sys::{FillMode, ResizeObserverSize};

@@ -5,6 +5,11 @@ members = ["examples/leptos-animate-test"]
 name = "leptos-animate"
 version = "0.1.0"
 edition = "2021"
+authors = ["Luxalpa"]
+repository = "https://github.com/luxalpa/leptos-animate"
+license = "MIT"
+description = "Animation components and utilities for Leptos"
+keywords = ["leptos", "animations", "dom", "web", "wasm"]
 
 [dependencies]
 leptos = { version = "0.6", features = ["nightly"] }
