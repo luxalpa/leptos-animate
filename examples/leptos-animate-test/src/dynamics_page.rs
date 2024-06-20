@@ -1,5 +1,5 @@
 use leptos::*;
-use leptos_animate::SecondOrderDynamics;
+use leptos_animate::dynamics::SecondOrderDynamics;
 use leptos_chartistry::{AspectRatio, AxisMarker, Chart, IntoInner, Series, TickLabels};
 
 #[component]

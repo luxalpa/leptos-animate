@@ -1,4 +1,4 @@
-use crate::{ElementSnapshot, Extent, SecondOrderDynamics};
+use crate::{dynamics::SecondOrderDynamics, ElementSnapshot, Extent};
 use itertools::Itertools;
 use leptos::{logging, Oco};
 use std::time::Duration;
@@ -182,17 +182,23 @@ impl ResizeAnimation for SlidingAnimation {
     }
 }
 
+/// Comparison for checking if velocity on the simulation has converged.
 fn fuzzy_compare(a: f64, b: f64) -> bool {
     (a - b).abs() < 0.01
 }
 
-/// A move / resize animation using [second order dynamics](https://www.youtube.com/watch?v=KPoeNZZ6H4s).
+/// A move / resize animation using a simulation of [second order dynamics](https://www.youtube.com/watch?v=KPoeNZZ6H4s).
 pub struct DynamicsAnimation {
     timing_fn: Oco<'static, str>,
     duration: Duration,
 }
 
 impl DynamicsAnimation {
+    /// Create and initiate a new dynamics simulation.
+    ///
+    /// f: frequency; response speed
+    /// z: damping ratio, [0, 1] => damping after the end, 1+ => damping / delay before hitting the end
+    /// r: gain at the start. 0 => start slowly, >1 => Overshoot, negative => anticipate
     pub fn new(f: f32, z: f32, r: f32) -> Self {
         let mut dynamics = SecondOrderDynamics::new(f, z, r, 0.0);
         let mut data = vec![];
