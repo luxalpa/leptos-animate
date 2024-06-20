@@ -51,6 +51,10 @@ pub fn AnimatedLayout<K, ContentsFn>(
     /// See this prop on [`AnimatedFor`].
     #[prop(default = SlidingAnimation::default().into(), into)]
     move_anim: AnyMoveAnimation,
+
+    /// See this prop on [`AnimatedFor`].
+    #[prop(default = false)]
+    handle_margins: bool,
 ) -> impl IntoView
 where
     K: Hash + Eq + Clone + 'static,
@@ -83,6 +87,7 @@ where
             enter_anim
             move_anim
             leave_anim
+            handle_margins
         />
     };
 
