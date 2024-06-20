@@ -2,13 +2,21 @@
 
 This crate provides various animation utilities in order to handle different scenarios in your web app:
 
-| Component        | Purpose                                                                                                                                                                                                                                                              |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AnimatedFor`    | The base animation primitive. It is an equivalent to leptos' `<For />` component and handles lists of elements. Provides FLIP animations for moving elements around. https://github.com/luxalpa/leptos-animate/assets/4991312/7ad67edb-95cd-464b-a19e-490fb2668f5c   |
-| `AnimatedShow`   | Animate the showing and hiding of a single element. https://github.com/luxalpa/leptos-animate/assets/4991312/07b14554-2342-444d-92f4-4125babe976f                                                                                                                    |
-| `AnimatedSwap`   | Swap out one element with another. https://github.com/luxalpa/leptos-animate/assets/4991312/640a2ab4-4b3f-4984-81bd-8ded08426b36                                                                                                                                     |
-| `AnimatedLayout` | Like `AnimatedFor`, except it allows to change the container's CSS layout between different configurations (for example moving between different grid configurations). https://github.com/luxalpa/leptos-animate/assets/4991312/bad42f7c-96d9-450e-bd1d-ed848a51a5b2 |
-| `SizeTransition` | React to size changes on the element and animate between those.                                                                                                                                                                                                      |
+| Component        | Purpose                                                                                                                                                                |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AnimatedFor`    | The base animation primitive. It is an equivalent to leptos' `<For />` component and handles lists of elements. Provides FLIP animations for moving elements around.   |
+| `AnimatedShow`   | Animate the showing and hiding of a single element.                                                                                                                    |
+| `AnimatedSwap`   | Swap out one element with another.                                                                                                                                     |
+| `AnimatedLayout` | Like `AnimatedFor`, except it allows to change the container's CSS layout between different configurations (for example moving between different grid configurations). |
+| `SizeTransition` | React to size changes on the element and animate between those.                                                                                                        |
+
+https://github.com/luxalpa/leptos-animate/assets/4991312/7ad67edb-95cd-464b-a19e-490fb2668f5c
+
+https://github.com/luxalpa/leptos-animate/assets/4991312/07b14554-2342-444d-92f4-4125babe976f
+
+https://github.com/luxalpa/leptos-animate/assets/4991312/640a2ab4-4b3f-4984-81bd-8ded08426b36
+
+https://github.com/luxalpa/leptos-animate/assets/4991312/bad42f7c-96d9-450e-bd1d-ed848a51a5b2
 
 ## Usage
 
