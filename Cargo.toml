@@ -14,8 +14,8 @@ keywords = ["leptos", "animations", "dom", "web", "wasm"]
 [dependencies]
 leptos = { version = "0.6", features = ["nightly"] }
 indexmap = "2"
-leptos-use = "0.10"
-wasm-bindgen = "0.2.92"
+leptos-use = "0.13"
+wasm-bindgen = "0.2.93"
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
 anyhow = "1"

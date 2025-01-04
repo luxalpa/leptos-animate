@@ -29,10 +29,6 @@ pub fn AnimatedShow(
     /// See this prop on [`AnimatedFor`].
     #[prop(default = false)]
     appear: bool,
-
-    /// See this prop on [`AnimatedFor`].
-    #[prop(default = false)]
-    handle_margins: bool,
 ) -> impl IntoView {
     let each = move || {
         if when.get() {
@@ -46,7 +42,7 @@ pub fn AnimatedShow(
 
     view! {
         <AnimatedFor each key=|_| 0 children=children_fn
-            appear enter_anim leave_anim handle_margins
+            appear enter_anim leave_anim
         />
     }
 }

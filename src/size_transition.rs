@@ -91,10 +91,11 @@ impl From<()> for AnySizeTransitionAnimation {
 /// ```
 /// // This is optional, it will default to SlidingAnimation::default() if not provided.
 /// let resize_anim = SlidingAnimation::default();
-///
-/// <span style="display:inline-block; position:relative;" use:animated_size=resize_anim>
-///     <SomeElementThatChangesItsSize />
-/// </span>
+/// view! {
+///     <span style="display:inline-block; position:relative;" use:animated_size=resize_anim>
+///         <SomeElementThatChangesItsSize />
+///     </span>
+/// }
 /// ```
 pub fn animated_size(el: HtmlElement<AnyElement>, size_anim: AnySizeTransitionAnimation) {
     let snapshot = StoredValue::new(None::<Extent>);

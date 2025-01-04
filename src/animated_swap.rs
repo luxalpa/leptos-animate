@@ -12,10 +12,6 @@ pub fn AnimatedSwap(
     appear: bool,
 
     /// See this prop on [`AnimatedFor`].
-    #[prop(default = false)]
-    handle_margins: bool,
-
-    /// See this prop on [`AnimatedFor`].
     #[prop(default = FadeAnimation::default().into(), into)]
     enter_anim: AnyEnterAnimation,
 
@@ -47,7 +43,6 @@ pub fn AnimatedSwap(
             animate_size=true
             enter_anim
             leave_anim
-            handle_margins
         />
     }
 }

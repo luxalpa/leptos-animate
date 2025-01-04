@@ -56,12 +56,13 @@ pub fn animate(
     #[cfg(not(feature = "ssr"))]
     {
         use web_sys::KeyframeAnimationOptions;
-        let mut options = KeyframeAnimationOptions::new();
+        let options = KeyframeAnimationOptions::new();
 
-        options.duration(duration).fill(fill_mode);
+        options.set_duration(duration);
+        options.set_fill(fill_mode);
 
         if let Some(easing) = easing {
-            options.easing(easing.as_ref());
+            options.set_easing(easing.as_ref());
         }
 
         el.animate_with_keyframe_animation_options(keyframes, &options)
@@ -363,14 +364,6 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     #[prop(default = false)]
     animate_size: bool,
 
-    /// Whether the child elements can have margins applied. This will simply remove the margins
-    /// during the snapshotting process for element positions and then reapply them, as such it is
-    /// fairly expensive to do. Typically it's better to just wrap your element that has a margin
-    /// applied in another element that doesn't. Also this won't handle margins on inline elements
-    /// in child-elements (those act really weird!).
-    #[prop(default = false)]
-    handle_margins: bool,
-
     /// The enter animation to use for new elements.
     #[prop(default = FadeAnimation::default().into(), into)]
     enter_anim: AnyEnterAnimation,
@@ -421,8 +414,7 @@ where
                         } else {
                             get_el_snapshot(
                                 &meta.el.as_ref().expect("el always exists on the client"),
-                                animate_size,
-                                handle_margins,
+                                true,
                             )
                         }
                     })
@@ -481,14 +473,7 @@ where
                                 on_leave_start((el.clone(), snapshot.position));
                             }
 
-                            let extent = if animate_size {
-                                snapshot.extent
-                            } else {
-                                Extent {
-                                    width: el.offset_width() as f64,
-                                    height: el.offset_height() as f64,
-                                }
-                            };
+                            let extent = snapshot.extent;
 
                             if let Some(cur_anim) = cur_anim {
                                 cur_anim.cancel();
@@ -545,7 +530,7 @@ where
             if prev.is_none() && !appear {
                 return;
             }
-            alive_items_meta.update_value(|items| {
+            alive_items_meta.try_update_value(|items| {
                 for (k, meta) in items.iter_mut() {
                     let el = meta.el.clone().expect("el always exists on the client");
                     let Some(&prev_snapshot) = snapshots.get(k) else {
@@ -565,13 +550,13 @@ where
 
                     // Move-animation
 
-                    meta.cur_anim.take().map(|cur_anim| cur_anim.cancel());
-
-                    let new_snapshot = get_el_snapshot(&el, animate_size, handle_margins);
+                    let new_snapshot = get_el_snapshot(&el, animate_size);
 
                     if prev_snapshot == new_snapshot {
                         continue;
                     }
+
+                    meta.cur_anim.take().map(|cur_anim| cur_anim.cancel());
 
                     meta.cur_anim = Some(move_anim.with_value(|move_anim| {
                         move_anim
@@ -677,38 +662,36 @@ fn extract_el_from_view(view: &View) -> anyhow::Result<web_sys::HtmlElement> {
 }
 
 /// Take a snapshot of an element's position and (optionally) size.
-fn get_el_snapshot(
-    el: &web_sys::HtmlElement,
-    record_extent: bool,
-    handle_margins: bool,
-) -> ElementSnapshot {
+fn get_el_snapshot(el: &web_sys::HtmlElement, record_extent: bool) -> ElementSnapshot {
     let extent = record_extent
-        .then(|| {
-            // We're using GetBoundingClientRect here because offsetWidth/Height aren't truthful
-            // when it comes to paddings.
-            let rect = el.get_bounding_client_rect();
-            Extent {
-                width: rect.width(),
-                height: rect.height(),
-            }
+        .then(|| Extent {
+            width: el.offset_width() as f64,
+            height: el.offset_height() as f64,
         })
         .unwrap_or_default();
-
     // offsetWidth/Height don't include margins.
-    if handle_margins {
-        el.style().set_property("margin", "0px").unwrap();
-    }
+    let css_props = window().get_computed_style(&el).unwrap().unwrap();
+    let margin_top = css_props.get_property_value("margin-top").unwrap();
+    let margin_left = css_props.get_property_value("margin-left").unwrap();
+
+    let margin_top = margin_top
+        .strip_suffix("px")
+        .expect("margin-top is not in pixels")
+        .parse::<f64>()
+        .unwrap();
+    let margin_left = margin_left
+        .strip_suffix("px")
+        .expect("margin-left is not in pixels")
+        .parse::<f64>()
+        .unwrap();
 
     // We're not using GetBoundingClientRect here because the position it returns is in viewport
-    // space, but we need it for position:absolute.
+    // space, but we need it in the coordinate-space of the offsetParent element for
+    // position:absolute.
     let position = Position {
-        x: el.offset_left() as f64,
-        y: el.offset_top() as f64,
+        x: el.offset_left() as f64 - margin_left,
+        y: el.offset_top() as f64 - margin_top,
     };
-
-    if handle_margins {
-        el.style().remove_property("margin").unwrap();
-    }
 
     ElementSnapshot { position, extent }
 }
