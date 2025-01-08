@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 use crate::{AnimatedFor, AnyEnterAnimation, AnyLeaveAnimation, FadeAnimation};
 
@@ -16,6 +16,7 @@ pub fn AnimatedShow(
     children: ChildrenFn,
 
     /// Whether to show the child or not.
+    #[prop(into)]
     when: Signal<bool>,
 
     /// See this prop on [`AnimatedFor`].

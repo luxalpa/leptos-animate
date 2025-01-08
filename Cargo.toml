@@ -12,9 +12,9 @@ description = "Animation components and utilities for Leptos"
 keywords = ["leptos", "animations", "dom", "web", "wasm"]
 
 [dependencies]
-leptos = { version = "0.6", features = ["nightly"] }
+leptos = { version = "0.7.3", features = ["nightly"] }
 indexmap = "2"
-leptos-use = "0.13"
+leptos-use = "0.15.2"
 wasm-bindgen = "0.2.93"
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"

@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 use crate::{
     AnimatedFor, AnyEnterAnimation, AnyLeaveAnimation, AnyMoveAnimation, FadeAnimation,
@@ -12,7 +12,7 @@ pub struct LayoutEntry<K: Hash + Eq + Clone + 'static> {
     pub key: K,
 
     /// A function that will be called to create the view.
-    pub view_fn: Box<dyn Fn() -> View>,
+    pub view_fn: Box<dyn Fn() -> AnyView>,
 }
 
 /// The return value for [`AnimatedLayout`], containing the new class being set and the list of
@@ -53,8 +53,8 @@ pub fn AnimatedLayout<K, ContentsFn>(
     move_anim: AnyMoveAnimation,
 ) -> impl IntoView
 where
-    K: Hash + Eq + Clone + 'static,
-    ContentsFn: Fn() -> LayoutResult<K> + 'static,
+    K: Hash + Eq + Clone + Sync + Send + 'static,
+    ContentsFn: Fn() -> LayoutResult<K> + 'static + Send + Sync,
 {
     let new_class = StoredValue::new(None::<Oco<'static, str>>);
     let class = RwSignal::new(None::<Oco<'static, str>>);

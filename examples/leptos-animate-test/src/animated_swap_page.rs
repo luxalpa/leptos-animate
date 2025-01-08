@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use leptos::*;
-use leptos_animate::{AnimatedSwap, FadeAnimation, SizeTransition, SlidingAnimation};
+use leptos::prelude::*;
+use leptos_animate::{AnimatedSwap, FadeAnimation, LayoutEntry, SizeTransition, SlidingAnimation};
 
-#[derive(Clone)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 enum Variant {
     VariantA,
     VariantB,
@@ -14,26 +14,43 @@ enum Variant {
 pub fn AnimatedSwapPage() -> impl IntoView {
     let variant = RwSignal::new(Variant::VariantA);
 
-    let content = Signal::derive(move || match variant.get() {
-        Variant::VariantA => (view! {
-            <div class="var-a">
-                "Variant A"
-            </div>
-        })
-        .into_view(),
-        Variant::VariantB => (view! {
-            <div class="var-b">
-                "B"
-            </div>
-        })
-        .into_view(),
-        Variant::VariantC => (view! {
-            <div class="var-c">
-                "A larger variant C"
-            </div>
-        })
-        .into_view(),
-    });
+    let contents = move || {
+        vec![
+            LayoutEntry {
+                key: Variant::VariantA,
+                view_fn: Box::new(|| {
+                    (view! {
+                        <div class="var-a">
+                            "Variant A"
+                        </div>
+                    })
+                    .into_any()
+                }),
+            },
+            LayoutEntry {
+                key: Variant::VariantB,
+                view_fn: Box::new(|| {
+                    (view! {
+                        <div class="var-b">
+                            "B"
+                        </div>
+                    })
+                    .into_any()
+                }),
+            },
+            LayoutEntry {
+                key: Variant::VariantC,
+                view_fn: Box::new(|| {
+                    (view! {
+                        <div class="var-c">
+                            "C"
+                        </div>
+                    })
+                    .into_any()
+                }),
+            },
+        ]
+    };
 
     let set_variant_a = move |_| variant.set(Variant::VariantA);
     let set_variant_b = move |_| variant.set(Variant::VariantB);
@@ -58,7 +75,7 @@ pub fn AnimatedSwapPage() -> impl IntoView {
             </div>
             <div class="content">
                 <SizeTransition resize_anim>
-                    <AnimatedSwap content enter_anim leave_anim />
+                    <AnimatedSwap contents enter_anim leave_anim />
                 </SizeTransition>
             </div>
         </div>

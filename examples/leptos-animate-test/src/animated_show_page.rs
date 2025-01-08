@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use leptos::*;
+use leptos::prelude::*;
 use leptos_animate::{AnimatedShow, FadeAnimation};
 
 #[component]
@@ -19,7 +19,7 @@ pub fn AnimatedShowPage() -> impl IntoView {
                     "Toggle Visibility"
                 </button>
             </div>
-            <AnimatedShow when=show.into_signal() enter_anim leave_anim>
+            <AnimatedShow when=show enter_anim leave_anim>
                 <div class="child">
                     "Visible Element"
                 </div>

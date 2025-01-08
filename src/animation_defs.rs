@@ -1,6 +1,7 @@
 use crate::{dynamics::SecondOrderDynamics, ElementSnapshot, Extent};
 use itertools::Itertools;
-use leptos::{logging, Oco};
+use leptos::logging;
+use leptos::oco::Oco;
 use std::time::Duration;
 
 /// Return value for any enter/leave animation.

@@ -1,11 +1,12 @@
-use crate::{AnimatedFor, AnyEnterAnimation, AnyLeaveAnimation, FadeAnimation};
-use leptos::*;
+use crate::{AnimatedFor, AnyEnterAnimation, AnyLeaveAnimation, FadeAnimation, LayoutEntry};
+use leptos::prelude::*;
+use std::hash::Hash;
 
 /// Animated transition between views.
 #[component]
-pub fn AnimatedSwap(
+pub fn AnimatedSwap<K, ContentsFn>(
     /// The view to show.
-    content: Signal<View>,
+    contents: ContentsFn,
 
     /// See this prop on [`AnimatedFor`].
     #[prop(default = false)]
@@ -18,27 +19,20 @@ pub fn AnimatedSwap(
     /// See this prop on [`AnimatedFor`].
     #[prop(default = FadeAnimation::default().into(), into)]
     leave_anim: AnyLeaveAnimation,
-) -> impl IntoView {
-    let key = StoredValue::new(0);
+) -> impl IntoView
+where
+    K: Hash + Eq + Clone + 'static + Send + Sync,
+    ContentsFn: Fn() -> Vec<LayoutEntry<K>> + 'static + Send + Sync,
+{
+    let key = move |v: &LayoutEntry<K>| v.key.clone();
 
-    let element = Memo::new(move |_| {
-        let k = (key.get_value() + 1) % 100;
-        key.set_value(k);
-        content.get()
-    });
-
-    let each = move || {
-        element.track();
-        [key.get_value()]
-    };
-
-    let children_fn = move |_: &i32| element.get();
+    let children = move |v: &LayoutEntry<K>| (v.view_fn)();
 
     view! {
         <AnimatedFor
-            each
-            key=move |k| *k
-            children=children_fn
+            each=contents
+            key
+            children
             appear
             animate_size=true
             enter_anim

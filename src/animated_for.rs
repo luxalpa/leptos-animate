@@ -1,14 +1,14 @@
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::rc::Rc;
-
 use crate::{EnterAnimation, FadeAnimation, LeaveAnimation, MoveAnimation, SlidingAnimation};
 use indexmap::IndexMap;
-use leptos::leptos_dom::is_server;
-use leptos::*;
+use leptos::either::Either;
+use leptos::prelude::*;
+use leptos::reactive::graph::{AnySubscriber, Observer, Subscriber};
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::sync::Arc;
 use wasm_bindgen::closure::Closure;
-use web_sys::js_sys;
 use web_sys::js_sys::Array;
+use web_sys::{js_sys, HtmlElement};
 use web_sys::{Animation, FillMode};
 
 use crate::position::{Extent, Position};
@@ -20,7 +20,7 @@ struct ItemMeta {
 
     /// Reference to the scope which will be dropped when the item is removed.
     /// Used to prevent reactive state changes during the leave-animation.
-    scope: Disposer,
+    observer: Option<AnySubscriber>,
 
     /// The current animation that's running on the element.
     /// We want to cancel this animation when we start a new one so that we don't have two running
@@ -377,27 +377,27 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     move_anim: AnyMoveAnimation,
 ) -> impl IntoView
 where
-    IF: Fn() -> I + 'static,
+    IF: Fn() -> I + Send + Sync + 'static,
     I: IntoIterator<Item = T>,
-    EF: Fn(&T) -> N + 'static,
+    EF: Fn(&T) -> N + Send + Sync + 'static,
     N: IntoView + 'static,
-    KF: Fn(&T) -> K + 'static,
-    K: Eq + Hash + Clone + 'static,
+    KF: Fn(&T) -> K + Send + Sync + Clone + 'static,
+    K: Eq + Hash + Clone + Send + Sync + 'static,
     T: 'static,
 {
     let key_fn = StoredValue::new(key);
 
-    let alive_items = RwSignal::new(IndexMap::<K, T>::new());
-    let leaving_items = RwSignal::new(IndexMap::<K, T>::new());
+    let alive_items = RwSignal::new_local(IndexMap::<K, T>::new());
+    let leaving_items = RwSignal::new_local(IndexMap::<K, T>::new());
 
-    let alive_items_meta = StoredValue::new(HashMap::<K, ItemMeta>::new());
+    let alive_items_meta = StoredValue::new_local(HashMap::<K, ItemMeta>::new());
 
-    let enter_anim = StoredValue::new(enter_anim);
-    let leave_anim = StoredValue::new(leave_anim);
-    let move_anim = StoredValue::new(move_anim);
+    let enter_anim = StoredValue::new_local(enter_anim);
+    let leave_anim = StoredValue::new_local(leave_anim);
+    let move_anim = StoredValue::new_local(move_anim);
 
     // Listen to changes in `each`. This handles all the animations.
-    create_isomorphic_effect(move |prev| {
+    Effect::new_isomorphic(move |prev: Option<()>| {
         let new_items = each()
             .into_iter()
             .map(|i| (key_fn.with_value(|k| k(&i)), i))
@@ -409,7 +409,7 @@ where
                 .iter()
                 .map(|(k, meta)| {
                     (k.clone(), {
-                        if is_server() {
+                        if cfg!(feature = "ssr") {
                             ElementSnapshot::default()
                         } else {
                             get_el_snapshot(
@@ -435,96 +435,93 @@ where
 
         // Callback trigger for CSS changes to be applied after snapshots
         if let Some(on_after_snapshot) = on_after_snapshot {
-            on_after_snapshot(());
+            on_after_snapshot.run(());
         }
 
         // Update alive items and trigger leave-animations
-        batch({
+        alive_items.update({
             let snapshots = &snapshots;
-            move || {
-                alive_items.update(move |alive_items| {
-                    let items_to_remove = alive_items
-                        .drain(..)
-                        .filter(|(k, _)| !new_items.contains_key(k))
-                        .collect::<Vec<_>>();
+            move |alive_items| {
+                let items_to_remove = alive_items
+                    .drain(..)
+                    .filter(|(k, _)| !new_items.contains_key(k))
+                    .collect::<Vec<_>>();
 
-                    alive_items_meta.update_value(|alive_items_meta| {
-                        for (k, _) in items_to_remove.iter() {
-                            let Some(ItemMeta {
-                                el,
-                                scope,
-                                cur_anim,
-                            }) = alive_items_meta.remove(k)
-                            else {
-                                continue;
-                            };
+                alive_items_meta.update_value(|alive_items_meta| {
+                    for (k, _) in items_to_remove.iter() {
+                        let Some(ItemMeta {
+                            el,
+                            observer,
+                            cur_anim,
+                        }) = alive_items_meta.remove(k)
+                        else {
+                            continue;
+                        };
 
-                            drop(scope);
+                        observer.map(|o| o.clear_sources(&o));
 
-                            if is_server() {
-                                return;
-                            }
-
-                            let el = el.expect("el always exists on the client");
-
-                            let snapshot = snapshots.get(k).unwrap();
-
-                            if let Some(on_leave_start) = on_leave_start {
-                                on_leave_start((el.clone(), snapshot.position));
-                            }
-
-                            let extent = snapshot.extent;
-
-                            if let Some(cur_anim) = cur_anim {
-                                cur_anim.cancel();
-                            }
-
-                            let style = el.style();
-                            style.set_property("position", "absolute").unwrap();
-                            style
-                                .set_property("top", &format!("{}px", snapshot.position.y))
-                                .unwrap();
-                            style
-                                .set_property("left", &format!("{}px", snapshot.position.x))
-                                .unwrap();
-
-                            style
-                                .set_property("width", &format!("{}px", extent.width))
-                                .unwrap();
-
-                            style
-                                .set_property("height", &format!("{}px", extent.height))
-                                .unwrap();
-
-                            let anim =
-                                leave_anim.with_value(|leave_anim| leave_anim.anim.animate(&el));
-
-                            // Remove leaving elements after their exit-animation
-                            let closure = Closure::<dyn Fn(web_sys::Event)>::new({
-                                let k = k.clone();
-                                move |_| {
-                                    leaving_items.try_update(|leaving_items| {
-                                        leaving_items.swap_remove(&k);
-                                    });
-                                }
-                            })
-                            .into_js_value();
-
-                            anim.set_onfinish(Some(&closure.into()));
+                        if cfg!(feature = "ssr") {
+                            return;
                         }
-                    });
 
-                    leaving_items.update(move |leaving_items| {
-                        leaving_items.extend(items_to_remove);
-                    });
-                    alive_items.extend(new_items);
+                        let el = el.expect("el always exists on the client");
+
+                        let snapshot = snapshots.get(k).unwrap();
+
+                        if let Some(on_leave_start) = on_leave_start {
+                            on_leave_start.run((el.clone(), snapshot.position));
+                        }
+
+                        let extent = snapshot.extent;
+
+                        if let Some(cur_anim) = cur_anim {
+                            cur_anim.cancel();
+                        }
+
+                        let style = el.style();
+                        style.set_property("position", "absolute").unwrap();
+                        style
+                            .set_property("top", &format!("{}px", snapshot.position.y))
+                            .unwrap();
+                        style
+                            .set_property("left", &format!("{}px", snapshot.position.x))
+                            .unwrap();
+
+                        style
+                            .set_property("width", &format!("{}px", extent.width))
+                            .unwrap();
+
+                        style
+                            .set_property("height", &format!("{}px", extent.height))
+                            .unwrap();
+
+                        let anim = leave_anim.with_value(|leave_anim| leave_anim.anim.animate(&el));
+
+                        // Remove leaving elements after their exit-animation
+                        let closure = Closure::<dyn Fn(web_sys::Event)>::new({
+                            let k = k.clone();
+                            move |_| {
+                                leaving_items.try_update(|leaving_items| {
+                                    leaving_items.swap_remove(&k);
+                                });
+                            }
+                        })
+                        .into_js_value();
+
+                        anim.set_onfinish(Some(&closure.into()));
+                    }
                 });
+
+                leaving_items.update(move |leaving_items| {
+                    leaving_items.extend(items_to_remove);
+                });
+                alive_items.extend(new_items);
             }
         });
 
         // Wait for the children to be created so that we get element refs for enter-animation
         queue_microtask(move || {
-            if is_server() {
+            if cfg!(feature = "ssr") {
                 return;
             }
             if prev.is_none() && !appear {
@@ -537,7 +534,7 @@ where
                         // Enter-animation
 
                         if let Some(on_enter_start) = on_enter_start {
-                            on_enter_start(el.clone());
+                            on_enter_start.run(el.clone());
                         }
 
                         meta.cur_anim.take().map(|cur_anim| cur_anim.cancel());
@@ -580,84 +577,62 @@ where
         })
     };
 
+    let children = Arc::new(children);
+
     let children_fn = {
-        {
-            let wrapped_children = Rc::new(as_child_of_current_owner(move |k: K| {
-                alive_items.with_untracked(|alive_items| {
+        // Register children refs and scopes.
+        move |k: K| {
+            let children = children.clone();
+            let k = Arc::new(k);
+            move || {
+                let k = Arc::clone(&k);
+
+                let observer = Observer::get();
+                let view = alive_items.with_untracked(|alive_items| {
                     leaving_items.with_untracked(|leaving_items| {
                         alive_items
-                            .get(&k)
-                            .or_else(|| leaving_items.get(&k))
+                            .get(k.as_ref())
+                            .or_else(|| leaving_items.get(k.as_ref()))
                             .map(|item| children(item))
                     })
-                })
-            }));
-
-            // Register children refs and scopes.
-            move |k: K| {
-                let (view, scope) = wrapped_children(k.clone());
-
-                let Some(view) = view else {
-                    return ().into_view();
-                };
-
-                let view = view.into_view();
-
-                let el = if is_server() {
-                    None
-                } else {
-                    Some(extract_el_from_view(&view).expect("Could not extract element from view"))
-                };
-
-                alive_items_meta.update_value(|meta| {
-                    meta.insert(
-                        k,
-                        ItemMeta {
-                            el,
-                            scope,
-                            cur_anim: None,
-                        },
-                    );
                 });
 
-                view
+                let Some(view) = view else {
+                    return Either::Left(().into_view());
+                };
+
+                let add_to_meta = move |el: Option<HtmlElement>| {
+                    alive_items_meta.update_value(|meta| {
+                        meta.insert(
+                            K::clone(k.as_ref()),
+                            ItemMeta {
+                                el,
+                                observer: observer.clone(),
+                                cur_anim: None,
+                            },
+                        );
+                    });
+                };
+
+                #[cfg(feature = "ssr")]
+                add_to_meta(None);
+
+                #[cfg(not(feature = "ssr"))]
+                let view = view.directive(
+                    move |el: web_sys::Element| {
+                        use wasm_bindgen::JsCast;
+                        add_to_meta(Some(el.dyn_into().unwrap()));
+                    },
+                    (),
+                );
+
+                Either::Right(view)
             }
         }
     };
 
     view! {
         <For each=items_fn.clone() key=move |k| k.clone() children=children_fn.clone() />
-    }
-}
-
-/// Get the node ref from a view. Ideally we'd like to have refs to the comment node or something
-/// that this view represents, but that's currently not possible.
-fn extract_el_from_view(view: &View) -> anyhow::Result<web_sys::HtmlElement> {
-    use wasm_bindgen::JsCast;
-    match view {
-        View::Component(component) => {
-            let node_view = component
-                .children
-                .first()
-                .ok_or_else(|| anyhow::anyhow!("No children in component"))?;
-            extract_el_from_view(node_view)
-        }
-        View::Element(view) => {
-            let el = view
-                .clone()
-                .into_html_element()
-                .dyn_ref::<web_sys::HtmlElement>()
-                .ok_or_else(|| {
-                    anyhow::anyhow!("Could not convert leptos::HtmlElement to web_sys::HtmlElement")
-                })?
-                .clone();
-
-            Ok(el)
-        }
-        v => Err(anyhow::anyhow!(
-            "Could not extract element from view: {:?}",
-            v
-        )),
     }
 }
 

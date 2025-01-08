@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_animate::dynamics::SecondOrderDynamics;
 use leptos_chartistry::{AspectRatio, AxisMarker, Chart, IntoInner, Series, TickLabels};
 
@@ -27,10 +27,10 @@ pub fn DynamicsPage() -> impl IntoView {
         r.set(event_target_value(&ev).parse().unwrap_or_default());
     };
 
-    let inner = [
-        AxisMarker::left_edge().into_inner(),
-        AxisMarker::bottom_edge().into_inner(),
-    ];
+    // let inner = [
+    //     AxisMarker::left_edge().into_inner(),
+    //     AxisMarker::bottom_edge().into_inner(),
+    // ];
 
     view! {
         <div class="main-container dynamics-page">
@@ -54,7 +54,7 @@ pub fn DynamicsPage() -> impl IntoView {
                 />
                 <div>{r}</div>
             </div>
-            <Chart data series aspect_ratio left=TickLabels::aligned_floats() bottom=TickLabels::aligned_floats() inner />
+            // <Chart data series aspect_ratio left=TickLabels::aligned_floats() bottom=TickLabels::aligned_floats() inner />
         </div>
     }
 }

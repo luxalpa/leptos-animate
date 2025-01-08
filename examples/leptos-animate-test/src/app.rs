@@ -1,12 +1,13 @@
 use crate::animated_show_page::AnimatedShowPage;
 use crate::animated_swap_page::AnimatedSwapPage;
 use crate::dynamics_page::DynamicsPage;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_animate::{
     AnimatedFor, AnimatedLayout, DynamicsAnimation, FadeAnimation, LayoutEntry, LayoutResult,
 };
-use leptos_meta::*;
-use leptos_router::*;
+use leptos_meta::{provide_meta_context, Stylesheet, Title};
+use leptos_router::components::{Route, Router, Routes, A};
+use leptos_router::{StaticSegment, WildcardSegment};
 use std::time::Duration;
 
 #[component]
@@ -22,13 +23,13 @@ pub fn App() -> impl IntoView {
         <Router>
             <main>
                 <Navigation/>
-                <Routes>
-                    <Route path="" view=AnimatedForPage/>
-                    <Route path="/layout" view=AnimatedLayoutPage/>
-                    <Route path="/dynamics" view=DynamicsPage/>
-                    <Route path="/swap" view=AnimatedSwapPage/>
-                    <Route path="/show" view=AnimatedShowPage/>
-                    <Route path="/*any" view=NotFound/>
+                <Routes fallback=move || "Not found.">
+                    <Route path=StaticSegment("") view=AnimatedForPage/>
+                    <Route path=StaticSegment("layout") view=AnimatedLayoutPage/>
+                    <Route path=StaticSegment("dynamics") view=DynamicsPage/>
+                    <Route path=StaticSegment("swap") view=AnimatedSwapPage/>
+                    <Route path=StaticSegment("show") view=AnimatedShowPage/>
+                    <Route path=WildcardSegment("any") view=NotFound/>
                 </Routes>
             </main>
         </Router>
@@ -149,7 +150,7 @@ fn AnimatedLayoutPage() -> impl IntoView {
                 "Main view"
             </div>
         })
-        .into_view()
+        .into_any()
     };
 
     let edit_view = move || {
@@ -158,7 +159,7 @@ fn AnimatedLayoutPage() -> impl IntoView {
                 "Edit view"
             </div>
         })
-        .into_view()
+        .into_any()
     };
 
     let options_view = move || {
@@ -167,7 +168,7 @@ fn AnimatedLayoutPage() -> impl IntoView {
                 "Options view"
             </div>
         })
-        .into_view()
+        .into_any()
     };
 
     let contents = move || {

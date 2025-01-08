@@ -1,9 +1,10 @@
 use std::rc::Rc;
 
 use crate::{animate, Extent, ResizeAnimation, SlidingAnimation};
-use leptos::html::AnyElement;
-use leptos::*;
+use leptos::prelude::*;
+use leptos::tachys::renderer::dom::Element;
 use leptos_use::use_resize_observer;
+use wasm_bindgen::JsCast;
 use web_sys::js_sys::Array;
 use web_sys::{FillMode, ResizeObserverSize};
 
@@ -36,11 +37,11 @@ pub fn SizeTransition(
 }
 
 trait SizeTransitionHandler {
-    fn animate(&self, el: HtmlElement<AnyElement>, snapshot: Extent, new_snapshot: Extent);
+    fn animate(&self, el: Element, snapshot: Extent, new_snapshot: Extent);
 }
 
 impl<T: ResizeAnimation> SizeTransitionHandler for T {
-    fn animate(&self, el: HtmlElement<AnyElement>, snapshot: Extent, new_snapshot: Extent) {
+    fn animate(&self, el: Element, snapshot: Extent, new_snapshot: Extent) {
         let r = self.animate(snapshot, new_snapshot);
 
         let arr: Array = [snapshot, new_snapshot]
@@ -55,7 +56,7 @@ impl<T: ResizeAnimation> SizeTransitionHandler for T {
             .collect();
 
         animate(
-            &el,
+            el.dyn_ref().unwrap(),
             Some(&arr.into()),
             &(r.duration.as_secs_f64() * 1000.0).into(),
             FillMode::None,
@@ -97,10 +98,10 @@ impl From<()> for AnySizeTransitionAnimation {
 ///     </span>
 /// }
 /// ```
-pub fn animated_size(el: HtmlElement<AnyElement>, size_anim: AnySizeTransitionAnimation) {
+pub fn animated_size(el: Element, size_anim: AnySizeTransitionAnimation) {
     let snapshot = StoredValue::new(None::<Extent>);
 
-    use_resize_observer((&*el).clone(), move |entries, _| {
+    use_resize_observer(el.clone(), move |entries, _| {
         let rects = entries[0].border_box_size();
         let rect: ResizeObserverSize = rects.get(0).into();
         let new_snapshot = Extent {
