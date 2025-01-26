@@ -15,8 +15,9 @@ pub fn AnimatedSwapPage() -> impl IntoView {
     let variant = RwSignal::new(Variant::VariantA);
 
     let contents = move || {
-        vec![
-            LayoutEntry {
+        let variant = variant.get();
+        match variant {
+            Variant::VariantA => LayoutEntry {
                 key: Variant::VariantA,
                 view_fn: Box::new(|| {
                     (view! {
@@ -27,29 +28,29 @@ pub fn AnimatedSwapPage() -> impl IntoView {
                     .into_any()
                 }),
             },
-            LayoutEntry {
+            Variant::VariantB => LayoutEntry {
                 key: Variant::VariantB,
                 view_fn: Box::new(|| {
                     (view! {
                         <div class="var-b">
-                            "B"
+                            "Variant B"
                         </div>
                     })
                     .into_any()
                 }),
             },
-            LayoutEntry {
+            Variant::VariantC => LayoutEntry {
                 key: Variant::VariantC,
                 view_fn: Box::new(|| {
                     (view! {
                         <div class="var-c">
-                            "C"
+                            "Variant C"
                         </div>
                     })
                     .into_any()
                 }),
             },
-        ]
+        }
     };
 
     let set_variant_a = move |_| variant.set(Variant::VariantA);

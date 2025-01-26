@@ -1,6 +1,7 @@
 use crate::{EnterAnimation, FadeAnimation, LeaveAnimation, MoveAnimation, SlidingAnimation};
 use indexmap::IndexMap;
 use leptos::either::Either;
+use leptos::logging;
 use leptos::prelude::*;
 use leptos::reactive::graph::{AnySubscriber, Observer, Subscriber};
 use std::collections::HashMap;
@@ -246,6 +247,8 @@ impl<T: MoveAnimationHandler + 'static> From<T> for AnyMoveAnimation {
 ///
 /// # Example
 /// ```
+/// use leptos::prelude::*;
+///
 /// #[component]
 /// pub fn MyGrid() -> impl IntoView {
 ///     let next_key = StoredValue::new(6);
@@ -588,6 +591,7 @@ where
                 let k = Arc::clone(&k);
 
                 let observer = Observer::get();
+
                 let view = alive_items.with_untracked(|alive_items| {
                     leaving_items.with_untracked(|leaving_items| {
                         alive_items

@@ -22,15 +22,20 @@ pub fn AnimatedSwap<K, ContentsFn>(
 ) -> impl IntoView
 where
     K: Hash + Eq + Clone + 'static + Send + Sync,
-    ContentsFn: Fn() -> Vec<LayoutEntry<K>> + 'static + Send + Sync,
+    ContentsFn: Fn() -> LayoutEntry<K> + 'static + Send + Sync,
 {
     let key = move |v: &LayoutEntry<K>| v.key.clone();
 
     let children = move |v: &LayoutEntry<K>| (v.view_fn)();
 
+    let each = move || {
+        let contents = contents();
+        [contents]
+    };
+
     view! {
         <AnimatedFor
-            each=contents
+            each
             key
             children
             appear
