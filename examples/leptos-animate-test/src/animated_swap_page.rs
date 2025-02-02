@@ -20,33 +20,33 @@ pub fn AnimatedSwapPage() -> impl IntoView {
             Variant::VariantA => LayoutEntry {
                 key: Variant::VariantA,
                 view_fn: Box::new(|| {
-                    (view! {
+                    view! {
                         <div class="var-a">
                             "Variant A"
                         </div>
-                    })
+                    }
                     .into_any()
                 }),
             },
             Variant::VariantB => LayoutEntry {
                 key: Variant::VariantB,
                 view_fn: Box::new(|| {
-                    (view! {
+                    view! {
                         <div class="var-b">
                             "Variant B"
                         </div>
-                    })
+                    }
                     .into_any()
                 }),
             },
             Variant::VariantC => LayoutEntry {
                 key: Variant::VariantC,
                 view_fn: Box::new(|| {
-                    (view! {
+                    view! {
                         <div class="var-c">
                             "Variant C"
                         </div>
-                    })
+                    }
                     .into_any()
                 }),
             },

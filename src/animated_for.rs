@@ -1,7 +1,6 @@
 use crate::{EnterAnimation, FadeAnimation, LeaveAnimation, MoveAnimation, SlidingAnimation};
 use indexmap::IndexMap;
 use leptos::either::Either;
-use leptos::logging;
 use leptos::prelude::*;
 use leptos::reactive::graph::{AnySubscriber, Observer, Subscriber};
 use std::collections::HashMap;
@@ -248,6 +247,8 @@ impl<T: MoveAnimationHandler + 'static> From<T> for AnyMoveAnimation {
 /// # Example
 /// ```
 /// use leptos::prelude::*;
+/// use leptos_animate::{AnimatedFor, FadeAnimation, DynamicsAnimation};
+/// use std::time::Duration;
 ///
 /// #[component]
 /// pub fn MyGrid() -> impl IntoView {
@@ -381,7 +382,7 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
 ) -> impl IntoView
 where
     IF: Fn() -> I + Send + Sync + 'static,
-    I: IntoIterator<Item = T>,
+    I: IntoIterator<Item = T> + 'static,
     EF: Fn(&T) -> N + Send + Sync + 'static,
     N: IntoView + 'static,
     KF: Fn(&T) -> K + Send + Sync + Clone + 'static,
@@ -641,7 +642,7 @@ where
 }
 
 /// Take a snapshot of an element's position and (optionally) size.
-fn get_el_snapshot(el: &web_sys::HtmlElement, record_extent: bool) -> ElementSnapshot {
+fn get_el_snapshot(el: &HtmlElement, record_extent: bool) -> ElementSnapshot {
     let extent = record_extent
         .then(|| Extent {
             width: el.offset_width() as f64,
