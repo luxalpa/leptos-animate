@@ -47,7 +47,7 @@ struct MoveAnimKeyframe {
 /// Wrapper around the `animate` function in the Web Animations API because in web_sys it is still
 /// unstable and that causes some problems with cranelift.
 pub fn animate(
-    el: &web_sys::HtmlElement,
+    el: &HtmlElement,
     keyframes: Option<&js_sys::Object>,
     duration: &::wasm_bindgen::JsValue,
     fill_mode: FillMode,
@@ -401,7 +401,7 @@ where
     let move_anim = StoredValue::new_local(move_anim);
 
     // Listen to changes in `each`. This handles all the animations.
-    Effect::new_isomorphic(move |prev: Option<()>| {
+    let e = RenderEffect::new_isomorphic(move |prev: Option<()>| {
         let new_items = each()
             .into_iter()
             .map(|i| (key_fn.with_value(|k| k(&i)), i))
@@ -523,14 +523,15 @@ where
             }
         });
 
+        if cfg!(feature = "ssr") {
+            return;
+        }
+        if prev.is_none() && !appear {
+            return;
+        }
+
         // Wait for the children to be created so that we get element refs for enter-animation
         queue_microtask(move || {
-            if cfg!(feature = "ssr") {
-                return;
-            }
-            if prev.is_none() && !appear {
-                return;
-            }
             alive_items_meta.try_update_value(|items| {
                 for (k, meta) in items.iter_mut() {
                     let el = meta.el.clone().expect("el always exists on the client");
@@ -568,6 +569,8 @@ where
             });
         });
     });
+
+    on_cleanup(move || drop(e));
 
     let items_fn = move || {
         alive_items.with(|items| {
