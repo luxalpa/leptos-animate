@@ -1,5 +1,7 @@
 // #![recursion_limit = "256"]
 
+mod animated_for_page;
+mod animated_layout_page;
 mod animated_show_page;
 mod animated_swap_page;
 pub mod app;
