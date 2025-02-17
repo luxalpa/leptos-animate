@@ -413,6 +413,9 @@ where
             alive_items.update(move |items| {
                 *items = new_items;
             });
+            if let Some(on_after_snapshot) = on_after_snapshot {
+                on_after_snapshot.run(());
+            }
             return;
         }
 
