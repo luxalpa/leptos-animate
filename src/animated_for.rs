@@ -420,13 +420,13 @@ where
         let snapshots = alive_items_meta.with_value(|alive_items_meta| {
             alive_items_meta
                 .iter()
-                .map(|(k, meta)| {
-                    (k.clone(), {
-                        get_el_snapshot(
-                            &meta.el.as_ref().expect("el always exists on the client"),
-                            true,
-                        )
-                    })
+                .filter_map(|(k, meta)| {
+                    let el = meta.el.as_ref().expect("el always exists on the client");
+                    if !el.is_connected() {
+                        return None;
+                    }
+
+                    Some((k.clone(), get_el_snapshot(el, true)))
                 })
                 .collect::<HashMap<_, _>>()
         });
@@ -434,6 +434,7 @@ where
         // Items that are re-added during the animation while they are still leaving must be
         // removed from the leaving_items list and will then be treated as new elements (Their
         // scope already got disposed, so there's no way to resurrect them).
+        // TODO: Now with pause() and resume() there might actually be a way to resurrect them.
         for k in new_items.keys() {
             if leaving_items.with_untracked(|leaving_items| leaving_items.contains_key(k)) {
                 leaving_items.update(|leaving_items| {
@@ -473,7 +474,9 @@ where
 
                         let el = el.expect("el always exists on the client");
 
-                        let snapshot = snapshots.get(k).unwrap();
+                        let Some(snapshot) = snapshots.get(k) else {
+                            continue;
+                        };
 
                         if let Some(on_leave_start) = on_leave_start {
                             on_leave_start.run((el.clone(), snapshot.position));
