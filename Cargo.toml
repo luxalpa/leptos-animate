@@ -2,10 +2,10 @@
 members = ["examples/leptos-animate-test"]
 
 [workspace.dependencies]
-leptos = { version = "0.7.5", features = ["nightly"] }
-leptos_meta = { version = "0.7.5" }
-leptos_router = { version = "0.7.5", features = ["nightly"] }
-leptos_actix = { version = "0.7.5" }
+leptos = { version = "0.7.7", features = ["nightly"] }
+leptos_meta = { version = "0.7.7" }
+leptos_router = { version = "0.7.7", features = ["nightly"] }
+leptos_actix = { version = "0.7.7" }
 
 [patch.crates-io]
 leptos = { git = "https://github.com/leptos-rs/leptos.git" }

@@ -2,7 +2,6 @@ use crate::{EnterAnimation, FadeAnimation, LeaveAnimation, MoveAnimation, Slidin
 use indexmap::IndexMap;
 use leptos::either::Either;
 use leptos::prelude::*;
-use leptos::reactive::graph::{AnySubscriber, Observer, Subscriber};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -20,7 +19,7 @@ struct ItemMeta {
 
     /// Reference to the scope which will be dropped when the item is removed.
     /// Used to prevent reactive state changes during the leave-animation.
-    observer: Option<AnySubscriber>,
+    observer: Option<Owner>,
 
     /// The current animation that's running on the element.
     /// We want to cancel this animation when we start a new one so that we don't have two running
@@ -399,7 +398,6 @@ where
     let enter_anim = StoredValue::new_local(enter_anim);
     let leave_anim = StoredValue::new_local(leave_anim);
     let move_anim = StoredValue::new_local(move_anim);
-
     // Listen to changes in `each`. This handles all the animations.
     let e = RenderEffect::new_isomorphic(move |prev: Option<()>| {
         let new_items = each()
@@ -407,20 +405,27 @@ where
             .map(|i| (key_fn.with_value(|k| k(&i)), i))
             .collect::<IndexMap<_, _>>();
 
+        let is_hydrating = Owner::current_shared_context().unwrap().during_hydration();
+        if cfg!(feature = "ssr") || is_hydrating {
+            alive_items_meta.update_value(|meta| {
+                meta.clear();
+            });
+            alive_items.update(move |items| {
+                *items = new_items;
+            });
+            return;
+        }
+
         // Get initial snapshots of all previously alive elements
         let snapshots = alive_items_meta.with_value(|alive_items_meta| {
             alive_items_meta
                 .iter()
                 .map(|(k, meta)| {
                     (k.clone(), {
-                        if cfg!(feature = "ssr") {
-                            ElementSnapshot::default()
-                        } else {
-                            get_el_snapshot(
-                                &meta.el.as_ref().expect("el always exists on the client"),
-                                true,
-                            )
-                        }
+                        get_el_snapshot(
+                            &meta.el.as_ref().expect("el always exists on the client"),
+                            true,
+                        )
                     })
                 })
                 .collect::<HashMap<_, _>>()
@@ -462,10 +467,8 @@ where
                             continue;
                         };
 
-                        observer.map(|o| o.clear_sources(&o));
-
-                        if cfg!(feature = "ssr") {
-                            return;
+                        if let Some(o) = observer.clone() {
+                            o.pause();
                         }
 
                         let el = el.expect("el always exists on the client");
@@ -505,6 +508,9 @@ where
                         let closure = Closure::<dyn Fn(web_sys::Event)>::new({
                             let k = k.clone();
                             move |_| {
+                                // observer.clone().map(|o| {
+                                //     o.resume();
+                                // });
                                 leaving_items.try_update(|leaving_items| {
                                     leaving_items.swap_remove(&k);
                                 });
@@ -523,9 +529,6 @@ where
             }
         });
 
-        if cfg!(feature = "ssr") {
-            return;
-        }
         if prev.is_none() && !appear {
             return;
         }
@@ -594,7 +597,7 @@ where
             move || {
                 let k = Arc::clone(&k);
 
-                let observer = Observer::get();
+                let observer = Owner::current();
 
                 let view = alive_items.with_untracked(|alive_items| {
                     leaving_items.with_untracked(|leaving_items| {
