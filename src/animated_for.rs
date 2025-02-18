@@ -514,9 +514,6 @@ where
                         let closure = Closure::<dyn Fn(web_sys::Event)>::new({
                             let k = k.clone();
                             move |_| {
-                                // observer.clone().map(|o| {
-                                //     o.resume();
-                                // });
                                 leaving_items.try_update(|leaving_items| {
                                     leaving_items.swap_remove(&k);
                                 });
@@ -655,16 +652,23 @@ where
 
 /// Take a snapshot of an element's position and (optionally) size.
 fn get_el_snapshot(el: &HtmlElement, record_extent: bool) -> ElementSnapshot {
-    let extent = record_extent
-        .then(|| Extent {
-            width: el.offset_width() as f64,
-            height: el.offset_height() as f64,
-        })
-        .unwrap_or_default();
-    // offsetWidth/Height don't include margins.
+
+    // Using 2 bounding rects instead of "offset" due to subpixel issues.
+    let p = el.offset_parent().unwrap();
+    let el_bounding = el.get_bounding_client_rect();
+    let p_bounding = p.get_bounding_client_rect();
+
+    // offset / bounding rects don't include margins.
     let css_props = window().get_computed_style(&el).unwrap().unwrap();
     let margin_top = css_props.get_property_value("margin-top").unwrap();
     let margin_left = css_props.get_property_value("margin-left").unwrap();
+
+    let extent = record_extent
+        .then(|| Extent {
+            width: el_bounding.width() as f64,
+            height: el_bounding.height() as f64,
+        })
+        .unwrap_or_default();
 
     let margin_top = margin_top
         .strip_suffix("px")
@@ -677,12 +681,9 @@ fn get_el_snapshot(el: &HtmlElement, record_extent: bool) -> ElementSnapshot {
         .parse::<f64>()
         .unwrap();
 
-    // We're not using GetBoundingClientRect here because the position it returns is in viewport
-    // space, but we need it in the coordinate-space of the offsetParent element for
-    // position:absolute.
     let position = Position {
-        x: el.offset_left() as f64 - margin_left,
-        y: el.offset_top() as f64 - margin_top,
+        x: el_bounding.x() - p_bounding.x() - margin_left,
+        y: el_bounding.y() - p_bounding.y() - margin_top,
     };
 
     ElementSnapshot { position, extent }
