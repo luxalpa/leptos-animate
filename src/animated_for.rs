@@ -4,7 +4,7 @@ use leptos::either::Either;
 use leptos::prelude::*;
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use wasm_bindgen::closure::Closure;
 use web_sys::js_sys::Array;
 use web_sys::{js_sys, HtmlElement};
@@ -135,12 +135,12 @@ impl<T: EnterAnimationHandler + 'static> From<T> for AnyEnterAnimation {
 /// Wrapper trait for [`LeaveAnimation`] to be used as a dyn trait. The original trait is not
 /// object-safe because it has an associated type.
 trait LeaveAnimationHandler {
-    fn animate(&self, el: &web_sys::HtmlElement) -> Animation;
+    fn animate(&self, el: &HtmlElement) -> Animation;
 }
 
 /// Automatically implemented on all `LeaveAnimation`s.
 impl<T: LeaveAnimation> LeaveAnimationHandler for T {
-    fn animate(&self, el: &web_sys::HtmlElement) -> Animation {
+    fn animate(&self, el: &HtmlElement) -> Animation {
         let r = self.leave();
 
         // Build the JavaScript object from the animations keyframes.
@@ -378,6 +378,11 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     /// The move animation to use for elements that change position.
     #[prop(default = SlidingAnimation::default().into(), into)]
     move_anim: AnyMoveAnimation,
+
+    /// Whether to use the window's scroll position for the snapshots. This is useful if the
+    /// window gets scrolled during the transition, most likely due to it being a route transition.
+    #[prop(optional, default = false)]
+    compensate_window_scroll: bool,
 ) -> impl IntoView
 where
     IF: Fn() -> I + Send + Sync + 'static,
@@ -398,6 +403,7 @@ where
     let enter_anim = StoredValue::new_local(enter_anim);
     let leave_anim = StoredValue::new_local(leave_anim);
     let move_anim = StoredValue::new_local(move_anim);
+
     // Listen to changes in `each`. This handles all the animations.
     let e = RenderEffect::new_isomorphic(move |prev: Option<()>| {
         let new_items = each()
@@ -405,6 +411,7 @@ where
             .map(|i| (key_fn.with_value(|k| k(&i)), i))
             .collect::<IndexMap<_, _>>();
 
+        // Need to skip all the animations on SSR
         let is_hydrating = Owner::current_shared_context().unwrap().during_hydration();
         if cfg!(feature = "ssr") || is_hydrating {
             alive_items_meta.update_value(|meta| {
@@ -508,20 +515,76 @@ where
                             .set_property("height", &format!("{}px", extent.height))
                             .unwrap();
 
-                        let anim = leave_anim.with_value(|leave_anim| leave_anim.anim.animate(&el));
+                        let k = k.clone();
+                        let anim_fn = move || {
+                            let anim =
+                                leave_anim.with_value(|leave_anim| leave_anim.anim.animate(&el));
 
-                        // Remove leaving elements after their exit-animation
-                        let closure = Closure::<dyn Fn(web_sys::Event)>::new({
-                            let k = k.clone();
-                            move |_| {
-                                leaving_items.try_update(|leaving_items| {
-                                    leaving_items.swap_remove(&k);
-                                });
-                            }
-                        })
-                        .into_js_value();
+                            // Remove leaving elements after their exit-animation
+                            let closure = Closure::<dyn Fn(web_sys::Event)>::new({
+                                let k = k.clone();
+                                move |_| {
+                                    leaving_items.try_update(|leaving_items| {
+                                        leaving_items.swap_remove(&k);
+                                    });
+                                }
+                            })
+                            .into_js_value();
 
-                        anim.set_onfinish(Some(&closure.into()));
+                            anim.set_onfinish(Some(&closure.into()));
+                        };
+
+                        if compensate_window_scroll {
+                            let snap_y = snapshot.position.y;
+                            let old_window_pos = window().scroll_y().unwrap();
+
+                            let has_animated = Arc::new(Mutex::new(false));
+
+                            let cb = Closure::<dyn Fn()>::new({
+                                let has_animated = Arc::clone(&has_animated);
+                                let anim_fn = anim_fn.clone();
+                                move || {
+                                    let new_window_pos = window().scroll_y().unwrap();
+
+                                    style
+                                        .set_property(
+                                            "top",
+                                            &format!(
+                                                "{}px",
+                                                snap_y + new_window_pos - old_window_pos
+                                            ),
+                                        )
+                                        .unwrap();
+
+                                    let _ = window().scroll_y().unwrap();
+
+                                    anim_fn();
+                                    *has_animated.lock().unwrap() = true;
+                                }
+                            });
+
+                            let listener = cb.into_js_value().into();
+
+                            window()
+                                .add_event_listener_with_callback("scroll", &listener)
+                                .unwrap();
+
+                            let remove_handler = Closure::<dyn Fn()>::new(move || {
+                                window()
+                                    .remove_event_listener_with_callback("scroll", &listener)
+                                    .unwrap();
+
+                                if !*has_animated.lock().unwrap() {
+                                    anim_fn();
+                                }
+                            });
+
+                            window()
+                                .set_timeout_with_callback(&remove_handler.into_js_value().into())
+                                .unwrap();
+                        } else {
+                            anim_fn();
+                        }
                     }
                 });
 
@@ -652,7 +715,6 @@ where
 
 /// Take a snapshot of an element's position and (optionally) size.
 fn get_el_snapshot(el: &HtmlElement, record_extent: bool) -> ElementSnapshot {
-
     // Using 2 bounding rects instead of "offset" due to subpixel issues.
     let p = el.offset_parent().unwrap();
     let el_bounding = el.get_bounding_client_rect();
