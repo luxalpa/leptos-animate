@@ -3,7 +3,7 @@
 This crate provides various animation utilities in order to handle different scenarios in your web app:
 
 | Component        | Purpose                                                                                                                                                                |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `AnimatedFor`    | The base animation primitive. It is an equivalent to leptos' `<For />` component and handles lists of elements. Provides FLIP animations for moving elements around.   |
 | `AnimatedShow`   | Animate the showing and hiding of a single element.                                                                                                                    |
 | `AnimatedSwap`   | Swap out one element with another.                                                                                                                                     |
@@ -40,8 +40,9 @@ then we extract the reference to the DOM node from the view to use for all furth
 
 Move animations are being done using the CSS `transform` property.
 
-## Todo's:
+## Todos:
 
 - [ ] Animation Staggering / Delay
-- [ ] Support `animated_size` for dynamicly sized contents using placeholder elements
+- [ ] Support `animated_size` for dynamically sized content using placeholder elements
 - [ ] Handle resizes on the container using a `ResizeObserver`.
+- [ ] Support View Transitions

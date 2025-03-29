@@ -4,6 +4,7 @@ use leptos::either::Either;
 use leptos::prelude::*;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use wasm_bindgen::closure::Closure;
 use web_sys::js_sys::Array;
@@ -162,14 +163,15 @@ impl<T: LeaveAnimation> LeaveAnimationHandler for T {
 
 /// Any struct that implements [`LeaveAnimation`] can be converted into this using `into()`.
 /// The props on the various components will do this automatically.
+#[derive(Clone)]
 pub struct AnyLeaveAnimation {
-    anim: Box<dyn LeaveAnimationHandler>,
+    anim: Rc<dyn LeaveAnimationHandler>,
 }
 
 /// Any [`LeaveAnimation`] can be converted to an [`AnyLeaveAnimation`] using the intermediate dyn Trait.
 impl<T: LeaveAnimationHandler + 'static> From<T> for AnyLeaveAnimation {
     fn from(v: T) -> Self {
-        AnyLeaveAnimation { anim: Box::new(v) }
+        AnyLeaveAnimation { anim: Rc::new(v) }
     }
 }
 
@@ -381,8 +383,12 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
 
     /// Whether to use the window's scroll position for the snapshots. This is useful if the
     /// window gets scrolled during the transition, most likely due to it being a route transition.
-    #[prop(optional, default = false)]
+    #[prop(default = false)]
     compensate_window_scroll: bool,
+
+    #[prop(optional)] enter_anim_override: Option<Box<dyn Fn(&T) -> Option<AnyEnterAnimation>>>,
+
+    #[prop(optional)] leave_anim_override: Option<Box<dyn Fn(&T) -> Option<AnyLeaveAnimation>>>,
 ) -> impl IntoView
 where
     IF: Fn() -> I + Send + Sync + 'static,
@@ -403,6 +409,9 @@ where
     let enter_anim = StoredValue::new_local(enter_anim);
     let leave_anim = StoredValue::new_local(leave_anim);
     let move_anim = StoredValue::new_local(move_anim);
+
+    let enter_anim_override = enter_anim_override.map(|v| StoredValue::new_local(v));
+    let leave_anim_override = leave_anim_override.map(|v| StoredValue::new_local(v));
 
     // Listen to changes in `each`. This handles all the animations.
     let e = RenderEffect::new_isomorphic(move |prev: Option<()>| {
@@ -468,7 +477,7 @@ where
                     .collect::<Vec<_>>();
 
                 alive_items_meta.update_value(|alive_items_meta| {
-                    for (k, _) in items_to_remove.iter() {
+                    for (k, item) in items_to_remove.iter() {
                         let Some(ItemMeta {
                             el,
                             observer,
@@ -516,9 +525,19 @@ where
                             .unwrap();
 
                         let k = k.clone();
+
+                        let override_anim = leave_anim_override.and_then(|anim_override| {
+                            anim_override.try_with_value(|e| e(item)).flatten()
+                        });
+
                         let anim_fn = move || {
-                            let anim =
-                                leave_anim.with_value(|leave_anim| leave_anim.anim.animate(&el));
+                            // Get overridden animation if it exists
+                            // animate()
+                            let anim = if let Some(override_anim) = override_anim.clone() {
+                                override_anim.anim.animate(&el)
+                            } else {
+                                leave_anim.with_value(|leave_anim| leave_anim.anim.animate(&el))
+                            };
 
                             // Remove leaving elements after their exit-animation
                             let closure = Closure::<dyn Fn(web_sys::Event)>::new({
@@ -611,10 +630,23 @@ where
                             on_enter_start.run(el.clone());
                         }
 
+                        // Cancel previous animation
                         meta.cur_anim.take().map(|cur_anim| cur_anim.cancel());
 
-                        meta.cur_anim =
-                            Some(enter_anim.with_value(|enter_anim| enter_anim.anim.animate(&el)));
+                        // Get overridden animation if it exists
+                        let override_anim = enter_anim_override.and_then(|enter_anim_override| {
+                            let items = alive_items.read_untracked();
+                            items.get(k).and_then(|i| {
+                                enter_anim_override.try_with_value(|e| e(i)).flatten()
+                            })
+                        });
+
+                        // animate()
+                        meta.cur_anim = Some(if let Some(override_anim) = override_anim {
+                            override_anim.anim.animate(&el)
+                        } else {
+                            enter_anim.with_value(|enter_anim| enter_anim.anim.animate(&el))
+                        });
 
                         continue;
                     };
