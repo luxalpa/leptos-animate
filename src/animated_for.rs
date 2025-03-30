@@ -79,13 +79,13 @@ pub fn animate(
 }
 
 /// A snapshot of an element's position and size at a specific moment.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct ElementSnapshot {
     /// The position of the element.
     position: Position,
 
     /// The height and width of the element.
-    extent: Extent,
+    extent: Option<Extent>,
 }
 
 /// Wrapper trait for [`EnterAnimation`] to be used as a dyn trait. The original trait is not
@@ -204,15 +204,15 @@ impl<T: MoveAnimation> MoveAnimationHandler for T {
             serde_wasm_bindgen::to_value(&MoveAnimKeyframe {
                 transform_origin: "top left".to_string(),
                 transform: format!("translate({}px, {}px)", diff.x, diff.y),
-                width: animate_size.then(|| format!("{}px", prev_snapshot.extent.width)),
-                height: animate_size.then(|| format!("{}px", prev_snapshot.extent.height)),
+                width: animate_size.then(|| format!("{}px", prev_snapshot.extent.unwrap().width)),
+                height: animate_size.then(|| format!("{}px", prev_snapshot.extent.unwrap().height)),
             })
             .unwrap(),
             serde_wasm_bindgen::to_value(&MoveAnimKeyframe {
                 transform_origin: "top left".to_string(),
                 transform: "none".to_string(),
-                width: animate_size.then(|| format!("{}px", new_snapshot.extent.width)),
-                height: animate_size.then(|| format!("{}px", new_snapshot.extent.height)),
+                width: animate_size.then(|| format!("{}px", new_snapshot.extent.unwrap().width)),
+                height: animate_size.then(|| format!("{}px", new_snapshot.extent.unwrap().height)),
             })
             .unwrap(),
         ]
@@ -445,6 +445,7 @@ where
                         return None;
                     }
 
+                    // Needs to also record the extent for the leave animations to work properly.
                     Some((k.clone(), get_el_snapshot(el, true)))
                 })
                 .collect::<HashMap<_, _>>()
@@ -517,11 +518,11 @@ where
                             .unwrap();
 
                         style
-                            .set_property("width", &format!("{}px", extent.width))
+                            .set_property("width", &format!("{}px", extent.unwrap().width))
                             .unwrap();
 
                         style
-                            .set_property("height", &format!("{}px", extent.height))
+                            .set_property("height", &format!("{}px", extent.unwrap().height))
                             .unwrap();
 
                         let k = k.clone();
@@ -652,10 +653,14 @@ where
                     };
 
                     // Move-animation
-
                     let new_snapshot = get_el_snapshot(&el, animate_size);
 
-                    if prev_snapshot == new_snapshot {
+                    // if animate_size is set to false then the old extent is still Some() but the
+                    // new extent is None, and we don't want that to trigger a move.
+                    if prev_snapshot.position == new_snapshot.position
+                        && (new_snapshot.extent.is_none()
+                            || new_snapshot.extent == prev_snapshot.extent)
+                    {
                         continue;
                     }
 
@@ -757,12 +762,10 @@ fn get_el_snapshot(el: &HtmlElement, record_extent: bool) -> ElementSnapshot {
     let margin_top = css_props.get_property_value("margin-top").unwrap();
     let margin_left = css_props.get_property_value("margin-left").unwrap();
 
-    let extent = record_extent
-        .then(|| Extent {
-            width: el_bounding.width() as f64,
-            height: el_bounding.height() as f64,
-        })
-        .unwrap_or_default();
+    let extent = record_extent.then(|| Extent {
+        width: el_bounding.width(),
+        height: el_bounding.height(),
+    });
 
     let margin_top = margin_top
         .strip_suffix("px")
