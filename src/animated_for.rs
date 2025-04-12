@@ -753,9 +753,11 @@ where
 /// Take a snapshot of an element's position and (optionally) size.
 fn get_el_snapshot(el: &HtmlElement, record_extent: bool) -> ElementSnapshot {
     // Using 2 bounding rects instead of "offset" due to subpixel issues.
-    let p = el.offset_parent().unwrap();
     let el_bounding = el.get_bounding_client_rect();
-    let p_bounding = p.get_bounding_client_rect();
+    let p_bounding = el
+        .offset_parent()
+        .unwrap_or_else(|| leptos::tachys::dom::body().into())
+        .get_bounding_client_rect();
 
     // offset / bounding rects don't include margins.
     let css_props = window().get_computed_style(&el).unwrap().unwrap();

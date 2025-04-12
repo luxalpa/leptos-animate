@@ -2,17 +2,17 @@
 members = ["examples/leptos-animate-test"]
 
 [workspace.dependencies]
-leptos = { version = "0.7.7", features = ["nightly"] }
-leptos_meta = { version = "0.7.7" }
-leptos_router = { version = "0.7.7", features = ["nightly"] }
-leptos_actix = { version = "0.7.7" }
+leptos = { version = "0.7.8", features = ["nightly"] }
+leptos_meta = { version = "0.7.8" }
+leptos_router = { version = "0.7.8", features = ["nightly"] }
+leptos_actix = { version = "0.7.8" }
 
-[patch.crates-io]
-leptos = { git = "https://github.com/leptos-rs/leptos.git" }
-leptos_meta = { git = "https://github.com/leptos-rs/leptos.git" }
-leptos_router = { git = "https://github.com/leptos-rs/leptos.git" }
-leptos_actix = { git = "https://github.com/leptos-rs/leptos.git" }
-reactive_graph = { git = "https://github.com/leptos-rs/leptos.git" }
+#[patch.crates-io]
+#leptos = { git = "https://github.com/leptos-rs/leptos.git" }
+#leptos_meta = { git = "https://github.com/leptos-rs/leptos.git" }
+#leptos_router = { git = "https://github.com/leptos-rs/leptos.git" }
+#leptos_actix = { git = "https://github.com/leptos-rs/leptos.git" }
+#reactive_graph = { git = "https://github.com/leptos-rs/leptos.git" }
 
 [package]
 name = "leptos-animate"
