@@ -22,6 +22,11 @@ https://github.com/luxalpa/leptos-animate/assets/4991312/bad42f7c-96d9-450e-bd1d
 
 See the project in the `examples` subdirectory.
 
+Currently requires `--cfg=erase_components` and `--cfg=web_sys_unstable_apis` to work.
+
+Ensure that there are no margins or transitive (i.e. collapsing) margins on the `offsetParent` of the elements that you
+want to animate. Usually this means you put a `display: relative` on the parent container.
+
 ## How it works
 
 Most of the components use `AnimatedFor` under the hood. Whenever the input to that component

@@ -17,6 +17,7 @@ pub struct AnimationConfig<T: serde::Serialize> {
 }
 
 /// Return value for any move animation.
+#[derive(Clone, Debug)]
 pub struct AnimationConfigMove {
     /// Duration of the animation
     pub duration: Duration,
@@ -26,6 +27,7 @@ pub struct AnimationConfigMove {
 }
 
 /// Return value for any resize animation - currently only used in [`SizeTransition`][crate::SizeTransition].
+#[derive(Clone, Debug)]
 pub struct AnimationConfigResize {
     /// Duration of the animation
     pub duration: Duration,
@@ -70,6 +72,7 @@ pub trait ResizeAnimation {
 }
 
 /// A simple enter / leave animation that fades the elements in and out using `opacity`
+#[derive(Clone, Debug)]
 pub struct FadeAnimation {
     pub timing_fn: Oco<'static, str>,
     pub duration: Duration,
@@ -136,6 +139,7 @@ impl LeaveAnimation for FadeAnimation {
 }
 
 /// A simple move / resize animation that changes the respective props based on the timing function.
+#[derive(Clone, Debug)]
 pub struct SlidingAnimation {
     pub timing_fn: Oco<'static, str>,
     pub duration: Duration,
@@ -189,6 +193,7 @@ fn fuzzy_compare(a: f64, b: f64) -> bool {
 }
 
 /// A move / resize animation using a simulation of [second order dynamics](https://www.youtube.com/watch?v=KPoeNZZ6H4s).
+#[derive(Clone, Debug)]
 pub struct DynamicsAnimation {
     timing_fn: Oco<'static, str>,
     duration: Duration,

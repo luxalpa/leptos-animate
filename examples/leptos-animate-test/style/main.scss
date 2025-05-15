@@ -36,6 +36,7 @@ body {
   background-color: #efefef;
   border-radius: 8px;
   box-sizing: border-box;
+  position: relative; // to make this the offsetParent.
 }
 
 nav {
@@ -114,7 +115,7 @@ nav {
 }
 
 .animated-swap-page {
-  & .content {
+  .content {
     padding: 1rem 1.5rem;
     background-color: #ffcd94;
     display: inline-block;
@@ -122,13 +123,13 @@ nav {
     box-sizing: border-box;
   }
 
-  & .var-c {
+  .var-c {
     height: 100px;
   }
 }
 
 .animated-show-page {
-  & .child {
+  .child {
     padding: 1rem 1.5rem;
     background-color: #ffcd94;
     display: inline-block;
