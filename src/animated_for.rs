@@ -142,7 +142,7 @@ trait LeaveAnimationHandler {
 /// Automatically implemented on all `LeaveAnimation`s.
 impl<T: LeaveAnimation> LeaveAnimationHandler for T {
     fn animate(&self, el: &HtmlElement) -> Animation {
-        let r = self.leave();
+        let r = self.leave(el);
 
         // Build the JavaScript object from the animations keyframes.
         let arr: Array = r
@@ -309,10 +309,8 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     /// actually renders the items in an underlying `For` component whose `each` function has to be
     /// rerun more frequently than this one.
     each: IF,
-
     /// A function that returns a key that is unique for each item currently in the list.
     key: KF,
-
     /// A function that receives a reference to the item and returns the view to render it.
     /// Just like on the [`<For />`][leptos::For] component, this will only rerun if the item with
     /// the key is being removed and then re-added later.
@@ -331,7 +329,6 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     /// `width:100%` will still work). Ideally the elements should also be block-like elements
     /// without margins.
     children: EF,
-
     /// Callback that is called for each item when it is about to start its leaving animation
     /// after it has been snapshotted. Useful to handle additional style changes that happen at the
     /// same time when `each` changes, for example if you want to apply a counter-animation. Note
@@ -340,23 +337,19 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     /// See also [`AnimatedLayout`][crate::AnimatedLayout].
     #[prop(optional)]
     on_leave_start: Option<Callback<(web_sys::HtmlElement, Position)>>,
-
     /// See `on_leave_start`.
     #[prop(optional)]
     on_enter_start: Option<Callback<web_sys::HtmlElement>>,
-
     /// Callback that is called after the initial snapshots of all elements have been taken but
     /// before the goal snapshots are taken. This is the time to apply CSS changes to the elements
     /// or to the container and have the elements be able to animate to their new positions.
     #[prop(optional)]
     on_after_snapshot: Option<Callback<()>>,
-
     /// Whether enter animations play when the component is initially rendered. This is usually not
     /// what you want. On SSR this will cause visual glitches because the enter animation would
     /// start much later than the initial render.
     #[prop(default = false)]
     appear: bool,
-
     /// Whether to also animate the sizes of the elements for move animations, for example in a
     /// grid with differently sized columns or rows.
     ///
@@ -368,19 +361,15 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     /// that case in some situations.
     #[prop(default = false)]
     animate_size: bool,
-
     /// The enter animation to use for new elements.
     #[prop(default = FadeAnimation::default().into(), into)]
     enter_anim: AnyEnterAnimation,
-
     /// The leave animation to use for elements that are removed.
     #[prop(default = FadeAnimation::default().into(), into)]
     leave_anim: AnyLeaveAnimation,
-
     /// The move animation to use for elements that change position.
     #[prop(default = SlidingAnimation::default().into(), into)]
     move_anim: AnyMoveAnimation,
-
     /// Whether to use the window's scroll position for the snapshots. This is useful if the
     /// window gets scrolled during the transition, most likely due to it being a route transition.
     #[prop(default = false)]
@@ -504,10 +493,6 @@ where
 
                         let extent = snapshot.extent;
 
-                        if let Some(cur_anim) = cur_anim {
-                            cur_anim.cancel();
-                        }
-
                         let style = el.style();
                         style.set_property("position", "absolute").unwrap();
                         style
@@ -532,13 +517,20 @@ where
                         });
 
                         let anim_fn = move || {
+                            let leave_anim_normal = leave_anim.read_value();
                             // Get overridden animation if it exists
+                            let actual_leave_anim = override_anim
+                                .as_ref()
+                                .unwrap_or_else(|| &*leave_anim_normal);
+
                             // animate()
-                            let anim = if let Some(override_anim) = override_anim.clone() {
-                                override_anim.anim.animate(&el)
-                            } else {
-                                leave_anim.with_value(|leave_anim| leave_anim.anim.animate(&el))
-                            };
+                            let anim = actual_leave_anim.anim.animate(&el);
+
+                            // Cancel the animation after the leave animation had a chance to
+                            // read out its properties.
+                            if let Some(cur_anim) = cur_anim.as_ref() {
+                                cur_anim.cancel();
+                            }
 
                             // Remove leaving elements after their exit-animation
                             let closure = Closure::<dyn Fn(web_sys::Event)>::new({

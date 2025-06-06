@@ -2,7 +2,9 @@ use crate::{dynamics::SecondOrderDynamics, ElementSnapshot, Extent};
 use itertools::Itertools;
 use leptos::logging;
 use leptos::oco::Oco;
+use leptos::prelude::window;
 use std::time::Duration;
+use web_sys::HtmlElement;
 
 /// Return value for any enter/leave animation.
 pub struct AnimationConfig<T: serde::Serialize> {
@@ -51,7 +53,7 @@ pub trait LeaveAnimation {
     type Props: serde::Serialize;
 
     /// Generate the keyframes, timing function, duration, etc.
-    fn leave(&self) -> AnimationConfig<Self::Props>;
+    fn leave(&self, el: &HtmlElement) -> AnimationConfig<Self::Props>;
 }
 
 /// Trait for defining a move animation.
@@ -123,7 +125,15 @@ impl EnterAnimation for FadeAnimation {
 impl LeaveAnimation for FadeAnimation {
     type Props = FadeAnimationProps;
 
-    fn leave(&self) -> AnimationConfig<Self::Props> {
+    fn leave(&self, el: &HtmlElement) -> AnimationConfig<Self::Props> {
+        let src_opacity = window()
+            .get_computed_style(&el)
+            .ok()
+            .flatten()
+            .and_then(|styles| styles.get_property_value("opacity").ok())
+            .and_then(|value| value.parse::<f64>().ok())
+            .unwrap_or(1.0);
+
         let duration = self.duration;
         let timing_fn = Some(self.timing_fn.clone());
 
@@ -131,7 +141,9 @@ impl LeaveAnimation for FadeAnimation {
             duration,
             timing_fn,
             keyframes: vec![
-                FadeAnimationProps { opacity: 1.0 },
+                FadeAnimationProps {
+                    opacity: src_opacity,
+                },
                 FadeAnimationProps { opacity: 0.0 },
             ],
         }
