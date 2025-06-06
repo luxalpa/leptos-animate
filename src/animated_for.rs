@@ -543,6 +543,7 @@ where
                             })
                             .into_js_value();
 
+                            anim.set_oncancel(Some(&closure.clone().into()));
                             anim.set_onfinish(Some(&closure.into()));
                         };
 
