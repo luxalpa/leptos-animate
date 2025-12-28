@@ -378,6 +378,8 @@ pub fn AnimatedFor<IF, I, T, EF, N, KF, K>(
     #[prop(optional)] enter_anim_override: Option<Box<dyn Fn(&T) -> Option<AnyEnterAnimation>>>,
 
     #[prop(optional)] leave_anim_override: Option<Box<dyn Fn(&T) -> Option<AnyLeaveAnimation>>>,
+
+    #[prop(optional)] name: Option<String>,
 ) -> impl IntoView
 where
     IF: Fn() -> I + Send + Sync + 'static,
@@ -388,6 +390,8 @@ where
     K: Eq + Hash + Clone + Send + Sync + 'static,
     T: 'static,
 {
+    let _name = StoredValue::new(name.unwrap_or_else(|| "Unnamed".to_string()));
+
     let key_fn = StoredValue::new(key);
 
     let alive_items = RwSignal::new_local(IndexMap::<K, T>::new());
@@ -695,6 +699,8 @@ where
 
                 let observer = Owner::current();
 
+                // TODO: The children() fn must not be reactive itself. We could use `untrack()` but
+                //       I believe there's also a way to output a warning directly.
                 let view = alive_items.with_untracked(|alive_items| {
                     leaving_items.with_untracked(|leaving_items| {
                         alive_items

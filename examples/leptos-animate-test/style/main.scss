@@ -28,7 +28,7 @@ body {
 
 .main-container {
   width: 800px;
-  height: 600px;
+  height: 900px;
   overflow: auto;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   padding: 1rem;
@@ -108,7 +108,7 @@ nav {
 
   .controls {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr 20px;
     gap: 1rem;
     align-content: start;
   }

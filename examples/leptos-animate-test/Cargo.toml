@@ -14,9 +14,9 @@ leptos = { workspace = true }
 leptos_meta = { workspace = true }
 leptos_actix = { workspace = true, optional = true }
 leptos_router = { workspace = true }
-wasm-bindgen = "=0.2.100"
+wasm-bindgen = "=0.2.106"
 leptos-animate = { path = "../.." }
-leptos-chartistry = { version = "0.2.1", git = "https://github.com/youngday/leptos-chartistry.git" }
+leptos-chartistry = { version = "0.2.2" }
 
 [features]
 csr = ["leptos/csr"]
@@ -29,6 +29,7 @@ ssr = [
     "leptos_meta/ssr",
     "leptos_router/ssr",
     "leptos-animate/ssr",
+    "leptos-chartistry/ssr",
 ]
 
 # Defines a size-optimized profile for the WASM bundle in release mode

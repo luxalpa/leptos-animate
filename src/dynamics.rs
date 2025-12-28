@@ -92,4 +92,8 @@ where
     pub fn velocity(&self) -> T {
         self.yd
     }
+
+    pub fn set_velocity(&mut self, v: T) {
+        self.yd = v;
+    }
 }
