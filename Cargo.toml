@@ -2,9 +2,9 @@
 members = ["examples/leptos-animate-test"]
 
 [workspace.dependencies]
-leptos = { version = "0.8.15", features = ["nightly"] }
+leptos = { version = "0.8.15" }
 leptos_meta = { version = "0.8.5" }
-leptos_router = { version = "0.8.11", features = ["nightly"] }
+leptos_router = { version = "0.8.11" }
 leptos_actix = { version = "0.8.6" }
 
 #[patch.crates-io]
@@ -45,3 +45,10 @@ features = [
 
 [features]
 ssr = ["leptos-use/ssr"]
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
