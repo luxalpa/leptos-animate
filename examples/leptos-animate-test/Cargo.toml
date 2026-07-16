@@ -14,9 +14,9 @@ leptos = { workspace = true }
 leptos_meta = { workspace = true }
 leptos_actix = { workspace = true, optional = true }
 leptos_router = { workspace = true }
-wasm-bindgen = "=0.2.106"
+wasm-bindgen = "=0.2.114"
 leptos-animate = { path = "../.." }
-leptos-chartistry = { version = "0.2.2" }
+leptos-chartistry = { version = "0.2.3" }
 
 [features]
 csr = ["leptos/csr"]

@@ -49,7 +49,7 @@ struct MoveAnimKeyframe {
 pub fn animate(
     el: &HtmlElement,
     keyframes: Option<&js_sys::Object>,
-    duration: &::wasm_bindgen::JsValue,
+    duration: f64,
     fill_mode: FillMode,
     easing: Option<impl AsRef<str>>,
 ) -> Animation {
@@ -111,7 +111,7 @@ impl<T: EnterAnimation> EnterAnimationHandler for T {
         animate(
             &el,
             Some(&arr.into()),
-            &(r.duration.as_secs_f64() * 1000.0).into(),
+            r.duration.as_secs_f64() * 1000.0,
             // The fill mode can shadow timing bugs, so we avoid it as much as possible.
             FillMode::None,
             r.timing_fn.as_ref().map(|v| v.as_str()),
@@ -154,7 +154,7 @@ impl<T: LeaveAnimation> LeaveAnimationHandler for T {
         animate(
             &el,
             Some(&arr.into()),
-            &(r.duration.as_secs_f64() * 1000.0).into(),
+            r.duration.as_secs_f64() * 1000.0,
             FillMode::None,
             r.timing_fn.as_ref().map(|v| v.as_str()),
         )
@@ -222,7 +222,7 @@ impl<T: MoveAnimation> MoveAnimationHandler for T {
         animate(
             &el,
             Some(&arr.into()),
-            &(r.duration.as_secs_f64() * 1000.0).into(),
+            r.duration.as_secs_f64() * 1000.0,
             FillMode::None,
             r.timing_fn.as_ref().map(|v| v.as_str()),
         )

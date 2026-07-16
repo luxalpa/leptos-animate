@@ -3,6 +3,33 @@ use leptos::prelude::*;
 use std::hash::Hash;
 
 /// Animated transition between views.
+/// ```rust
+/// # use leptos::prelude::*;
+/// # use leptos_animate::{AnimatedSwap, LayoutEntry};
+///
+/// enum DisplayedView {
+///     MainPage,
+///     Settings,
+/// }
+///
+/// let contents = move || {
+///     LayoutEntry {
+///         key: DisplayedView::MainPage,
+///         view_fn: Box::new(|| {
+///            view! { <div>"Main Page"</div> }.into_any()
+///         ),
+///     }
+/// }
+///
+/// let enter_anim = FadeAnimation::default();
+/// let leave_anim = FadeAnimation::default();
+///
+/// view! {
+///    <AnimatedSwap contents enter_anim leave_anim />
+/// }
+///
+/// ```
+///
 #[component]
 pub fn AnimatedSwap<K, ContentsFn>(
     /// The view to show.

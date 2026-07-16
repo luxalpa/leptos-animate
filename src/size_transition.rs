@@ -58,7 +58,7 @@ impl<T: ResizeAnimation> SizeTransitionHandler for T {
         animate(
             el.dyn_ref().unwrap(),
             Some(&arr.into()),
-            &(r.duration.as_secs_f64() * 1000.0).into(),
+            r.duration.as_secs_f64() * 1000.0,
             FillMode::None,
             r.timing_fn.as_ref().map(|v| v.as_str()),
         );
